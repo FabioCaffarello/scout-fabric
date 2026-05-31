@@ -11,9 +11,12 @@
     "lint": "nx run-many -t lint",
     "typecheck": "nx run-many -t typecheck",
     "format": "prettier --write . --cache",
-    "format:check": "prettier --check . --cache"
+    "format:check": "prettier --check . --cache",
+    "commitlint": "commitlint"
   },
   "devDependencies": {
+    "@commitlint/cli": "^21.0.2",
+    "@commitlint/config-conventional": "^21.0.2",
     "@nx/eslint": "22.7.5",
     "@nx/eslint-plugin": "22.7.5",
     "@nx/js": "22.7.5",
