@@ -42,17 +42,28 @@ nascem **fora** dela.
 - Husky v9 ativo: `pre-commit` roda `lint-staged`; `commit-msg` roda
   `commitlint` (conventional).
 - Node pin — `.nvmrc=24`, `engines.node: ">=22.0.0"`.
-- `packages/` vazio.
+- **CI ativo** — `.github/workflows/ci.yml`: 3 jobs (`format`, `commit-msg`,
+  `verify`) com `nx-set-shas` resolvendo `NX_BASE`/`NX_HEAD`. PR roda
+  `affected`; push em `main` roda `run-many`. Detalhes em
+  [`ci.md`](../ci.md).
+- `packages/` contém `sf-tsconfig` (TS configs base re-utilizáveis).
 
 ## Roadmap
 
-- `@fabio.caffarello/sf-tsconfig` (próximo pacote).
+- **Release pipeline** (próximo lote):
+  - `nx.json#release` completo: `release.git` (`commit`, `tag`),
+    `release.changelog` (workspace + per-project), `release.version`
+    (conventional bumps).
+  - Smoke test de publish no Verdaccio — `.verdaccio/config.yml` e o target
+    `local-registry` já estão plantados; falta o workflow que sobe o
+    registry, publica e verifica.
+  - `NPM_TOKEN` como GitHub Actions secret + workflow de release (separado do
+    `ci.yml`).
 - `@fabio.caffarello/sf-eslint-config`.
 - `@fabio.caffarello/sf-plugin` — generators, executors, migrations.
 - Catálogo de scout (estrutura, schemas, conteúdo).
 - Kit de scout — subagents Claude, slash-commands.
 - `forge update` — propagação de transformações a repos externos.
-- CI.
 
 ## Diagramas
 

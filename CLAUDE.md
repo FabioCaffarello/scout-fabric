@@ -7,18 +7,22 @@ conteúdo aqui — este arquivo só descreve o que muda comportamento.
 
 ## Comandos que funcionam hoje
 
-| Comando                                           | O que faz                                                          |
-| ------------------------------------------------- | ------------------------------------------------------------------ |
-| `pnpm install`                                    | Restaura deps e instala/atualiza hooks (`prepare`).                |
-| `pnpm lint`                                       | `nx run-many -t lint`. No-op enquanto `packages/` está vazio.      |
-| `pnpm typecheck`                                  | `nx run-many -t typecheck`. No-op enquanto `packages/` está vazio. |
-| `pnpm format:check`                               | Verifica formatação Prettier do repo.                              |
-| `pnpm format`                                     | Aplica Prettier.                                                   |
-| `echo "<msg>" \| pnpm commitlint`                 | Linta uma mensagem via stdin.                                      |
-| `pnpm exec nx affected -t lint --base=<ref>`      | Lint só nos projetos afetados a partir de `<ref>`.                 |
-| `pnpm exec nx affected -t typecheck --base=<ref>` | Typecheck só nos afetados.                                         |
-| `pnpm exec nx show projects`                      | Lista projetos reconhecidos pelo Nx.                               |
-| `pnpm exec nx graph --file=<path>`                | Exporta o grafo do workspace (`.json` ou `.html`).                 |
+| Comando                                                          | O que faz                                                               |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `pnpm install`                                                   | Restaura deps e instala/atualiza hooks (`prepare`).                     |
+| `pnpm lint`                                                      | `nx run-many -t lint`. No-op enquanto `packages/` está vazio.           |
+| `pnpm typecheck`                                                 | `nx run-many -t typecheck`. No-op enquanto `packages/` está vazio.      |
+| `pnpm format:check`                                              | Verifica formatação Prettier do repo.                                   |
+| `pnpm format`                                                    | Aplica Prettier.                                                        |
+| `echo "<msg>" \| pnpm commitlint`                                | Linta uma mensagem via stdin.                                           |
+| `pnpm affected:lint`                                             | Lint só nos projetos afetados desde `main` (mesmo que CI roda em PR).   |
+| `pnpm affected:typecheck`                                        | Typecheck nos afetados.                                                 |
+| `pnpm affected:test`                                             | Test nos afetados.                                                      |
+| `pnpm affected:build`                                            | Build nos afetados.                                                     |
+| `pnpm many:lint` / `many:typecheck` / `many:test` / `many:build` | Mesmos targets em **todos** os projetos (o que CI faz em push em main). |
+| `pnpm exec nx affected -t lint --base=<ref>`                     | Para escolher um base ≠ `main`.                                         |
+| `pnpm exec nx show projects`                                     | Lista projetos reconhecidos pelo Nx.                                    |
+| `pnpm graph`                                                     | Abre o grafo (interativo). Use `--file=<path>` para `.json`/`.html`.    |
 
 Use `pnpm exec <bin>`, **nunca** `npx` — workspace é pnpm-puro e `.npmrc`
 carrega chaves pnpm-only.
@@ -40,6 +44,7 @@ carrega chaves pnpm-only.
   `@fabio.caffarello/sf-*`.
 - **Hooks rápidos.** Pre-commit ≤ ~5s. `typecheck` e `test` ficam para CI,
   não para pre-commit.
+- **CI da fábrica ≠ CI dos projetos-filhos.** Detalhes em [`docs/ci.md`](docs/ci.md).
 
 ## Onde pôr coisas novas
 
