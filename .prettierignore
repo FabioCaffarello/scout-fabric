@@ -3,3 +3,6 @@
 /coverage
 /.nx/cache
 /.nx/workspace-data
+
+# Lockfiles are managed by package managers; never format
+pnpm-lock.yaml
