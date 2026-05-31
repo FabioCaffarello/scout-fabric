@@ -3,8 +3,28 @@
   "analytics": false,
   "namedInputs": {
     "default": ["{projectRoot}/**/*", "sharedGlobals"],
-    "production": ["default", "!{projectRoot}/.eslintrc.json", "!{projectRoot}/eslint.config.mjs"],
-    "sharedGlobals": []
+    "production": [
+      "default",
+      "!{projectRoot}/**/?(*.)+(spec|test).[jt]s?(x)",
+      "!{projectRoot}/**/test-setup.[jt]s",
+      "!{projectRoot}/jest.config.{js,ts,mjs,cjs}",
+      "!{projectRoot}/vitest.config.{js,ts,mjs,cjs}",
+      "!{projectRoot}/tsconfig.spec.json",
+      "!{projectRoot}/.eslintrc.json",
+      "!{projectRoot}/eslint.config.{js,mjs,cjs,ts}"
+    ],
+    "sharedGlobals": [
+      "{workspaceRoot}/tsconfig.base.json",
+      "{workspaceRoot}/.npmrc",
+      "{workspaceRoot}/pnpm-workspace.yaml",
+      "{workspaceRoot}/nx.json"
+    ]
+  },
+  "targetDefaults": {
+    "test": {
+      "cache": true,
+      "inputs": ["default", "^production"]
+    }
   },
   "plugins": [
     {
@@ -27,5 +47,10 @@
         "targetName": "lint"
       }
     }
-  ]
+  ],
+  "release": {
+    "version": {
+      "preVersionCommand": "pnpm exec nx run-many -t build"
+    }
+  }
 }
