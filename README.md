@@ -1,7 +1,7 @@
 # scout-fabric
 
 Monorepo-fábrica baseada em Nx 22 que publica pacotes (`@fabio.caffarello/sf-*`)
-para uso por **projetos externos independentes**. Não é um app.
+para uso por **projetos externos independentes**. Não é um app — é uma fábrica.
 
 - **Contexto, decisões e roadmap:** [`docs/architecture/context.md`](docs/architecture/context.md)
 - **Comandos validados e convenções para agentes/contribuidores:** [`CLAUDE.md`](CLAUDE.md)
