@@ -13,6 +13,15 @@
     "format": "prettier --write . --cache",
     "format:check": "prettier --check . --cache",
     "commitlint": "commitlint",
+    "graph": "nx graph",
+    "affected:lint": "nx affected -t lint",
+    "affected:typecheck": "nx affected -t typecheck",
+    "affected:test": "nx affected -t test",
+    "affected:build": "nx affected -t build",
+    "many:lint": "nx run-many -t lint",
+    "many:typecheck": "nx run-many -t typecheck",
+    "many:test": "nx run-many -t test",
+    "many:build": "nx run-many -t build",
     "prepare": "husky"
   },
   "devDependencies": {
