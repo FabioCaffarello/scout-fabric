@@ -26,6 +26,9 @@
     "test": {
       "cache": true,
       "inputs": ["default", "^production"]
+    },
+    "lint": {
+      "dependsOn": ["sf-eslint-config:build"]
     }
   },
   "plugins": [
