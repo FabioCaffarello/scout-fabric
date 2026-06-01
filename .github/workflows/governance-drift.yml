@@ -1,0 +1,30 @@
+name: governance-drift
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Weekly: Monday 13:00 UTC (≈ 10:00 BRT). Detect drift created
+    # out-of-band (UI edits, gh api calls without committing the spec).
+    - cron: '0 13 * * 1'
+
+permissions:
+  contents: read
+
+env:
+  HUSKY: '0'
+
+jobs:
+  check:
+    name: governance drift check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: check live vs spec
+        env:
+          # `administration: read` is NOT a workflow-grantable scope,
+          # so the automatic GITHUB_TOKEN cannot read branch protection.
+          # Prefer the PAT secret if present; fall back to GITHUB_TOKEN so
+          # the failure is loud and obvious when the PAT hasn't been set
+          # up yet — see docs/governance.md.
+          GH_TOKEN: ${{ secrets.GOVERNANCE_ADMIN_TOKEN || secrets.GITHUB_TOKEN }}
+        run: ./scripts/apply-branch-protection.sh

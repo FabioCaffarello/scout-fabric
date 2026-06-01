@@ -49,6 +49,43 @@ então rodar duas vezes com o mesmo spec não tem efeito visível.
    mudança — incluindo o commit-msg conventional, porque a própria
    proteção exige isso.
 
+## Detecção de drift
+
+O workflow [`.github/workflows/governance-drift.yml`](../.github/workflows/governance-drift.yml)
+roda o script em dry-run em dois momentos:
+
+- **Sob demanda**: `gh workflow run governance-drift.yml`.
+- **Semanal**: segunda 13:00 UTC. Pega drifts criados fora-de-banda
+  (alguém editou via UI do GitHub sem commitar o JSON).
+
+Se houver diff entre o estado live e o `branch-protection.main.json`, o
+job falha. O workflow **nunca aplica** — drift exige decisão humana:
+
+1. Identificar quem/quando mudou (UI do GitHub mostra histórico de
+   proteção em Settings → Branches).
+2. Decidir: a mudança foi legítima? Então `governance/...json` precisa
+   refletir isso — abra PR atualizando o spec.
+3. Foi indevida? Reverter rodando `./scripts/apply-branch-protection.sh --apply`.
+
+### Pré-requisito: secret `GOVERNANCE_ADMIN_TOKEN`
+
+`GET /repos/.../branches/main/protection` exige permissão
+`administration: read`, que **não é grantable pelo `permissions:` do
+workflow** (é permissão do app, não do token). O `GITHUB_TOKEN`
+automático então não funciona para este check.
+
+O workflow usa `secrets.GOVERNANCE_ADMIN_TOKEN || secrets.GITHUB_TOKEN`
+— prefere o PAT se ele existir, e cai no token automático apenas para
+que a falha seja barulhenta enquanto o PAT não estiver configurado.
+
+Para destravar o check:
+
+1. Criar PAT fine-grained com `Repository administration: Read` (ou
+   classic com `repo`), válido apenas para este repo.
+2. Salvar como secret `GOVERNANCE_ADMIN_TOKEN` em
+   Settings → Secrets and variables → Actions.
+3. Re-rodar via `gh workflow run governance-drift.yml`.
+
 ## O que isto NÃO cobre
 
 - `required_signatures` (endpoint separado na API; não plugado).
