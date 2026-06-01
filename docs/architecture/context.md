@@ -48,10 +48,39 @@ nascem **fora** dela.
   runner, `sharedGlobals` modelando os arquivos cross-workspace,
   `targetDefaults.test` semeado.
 
-**Pacotes (camada 0.9):** `packages/sf-tsconfig` — base TS reusável
-(`base.json` + `lib.json`). Único pacote real até agora.
-Convenção para criar um novo `sf-*` (generator + ajustes obrigatórios)
-em [`../conventions/package.md`](../conventions/package.md).
+**Pacotes (camada 0.9 + 3):** dois pacotes vivos.
+
+- `packages/sf-tsconfig` — TS configs base reusáveis
+  (`base.json` + `lib.json`).
+- `packages/sf-eslint-config` — flat config ESLint compartilhada
+  (presets Nx, regras opinativas, `eslint-config-prettier`). O
+  `eslint.config.mjs` raiz é um **stub fino** que estende esse pacote
+  via `import sf from '@fabio.caffarello/sf-eslint-config'` (consumido
+  via `workspace:*`) e acrescenta apenas o que é workspace-specific
+  (typed-lint com `projectService`, `enforce-module-boundaries` com
+  `depConstraints`).
+
+A workspace dep força Node a resolver pelo `default` do `exports`,
+ou seja, pelo `dist/`. Por isso `targetDefaults.lint.dependsOn` no
+`nx.json` inclui `sf-eslint-config:build` — garante dist fresco antes
+de qualquer lint.
+
+Convenção para criar um novo `sf-*` — generator, ajustes obrigatórios,
+pegadinhas do lockfile e peer deps contratuais — em
+[`../conventions/package.md`](../conventions/package.md).
+
+**Ferramental de desenvolvimento (`.claude/`):**
+
+- Subagent `package-creator` (`.claude/agents/package-creator.md`) —
+  encapsula a convenção de criação de pacote num roteiro repetível.
+  Não publica, não comita, não abre PR.
+- Skills finas (`.claude/skills/<name>/SKILL.md`):
+  - `validate` → `nx affected -t lint typecheck test build`.
+  - `smoke-publish` → `tools/smoke-publish.sh`.
+  - `governance` → `scripts/apply-branch-protection.sh` (dry-run
+    default; `--apply` exige confirmação).
+- Convenção: skill é fina, lógica vive no script. Mudar comportamento =
+  mudar o script.
 
 **CI (camada 1):** `.github/workflows/ci.yml` — 3 jobs (`format`,
 `commit-msg`, `verify`) com `nx-set-shas`. PR roda `affected`; push em
@@ -96,10 +125,9 @@ Coverage `v8`, reporters `text+html`, sem thresholds.
 
 **Próximos pacotes** (camada de produto):
 
-- `@fabio.caffarello/sf-eslint-config` — extrai `eslint.config.mjs` raiz
-  como pacote consumível por projetos externos.
 - `@fabio.caffarello/sf-plugin` — Nx plugin (generators + executors +
-  migrations). A "CLI da fábrica".
+  migrations). A "CLI da fábrica". Será o primeiro a usar o ferramental
+  `.claude/` que acabamos de provar com `sf-eslint-config`.
 
 **Mais à frente:**
 

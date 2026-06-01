@@ -1,52 +1,33 @@
 // @ts-check
-import nx from '@nx/eslint-plugin';
+//
+// Workspace-level ESLint flat config.
+//
+// The shared base — common ignores, Nx flat presets, opinionated rules,
+// and `eslint-config-prettier` — comes from the published package
+// `@fabio.caffarello/sf-eslint-config` (the workspace consumes it via
+// pnpm `workspace:*`, so it's symlinked from `packages/sf-eslint-config`).
+// Updates to the shared base happen there, not here.
+//
+// This file only adds what is genuinely workspace-specific and cannot
+// live in a publishable package:
+//   - typed-aware rules that need `parserOptions.projectService` and
+//     `tsconfigRootDir`,
+//   - `@nx/enforce-module-boundaries` with this workspace's
+//     `depConstraints`.
+//
+// Note: Node resolves `@fabio.caffarello/sf-eslint-config` to its built
+// `dist/index.js` (its `exports."."` falls back to `default` because Node
+// does not honour the `@scout-fabric/source` condition at runtime). The
+// `lint` target therefore has `dependsOn: ['sf-eslint-config:build']` in
+// `nx.json` so the dist is fresh before any lint runs.
+
+import sf from '@fabio.caffarello/sf-eslint-config';
 import tseslint from 'typescript-eslint';
-import prettier from 'eslint-config-prettier';
 
 export default [
-  {
-    ignores: [
-      '**/dist/**',
-      '**/node_modules/**',
-      '**/.nx/**',
-      '**/coverage/**',
-      '**/tmp/**',
-      '**/out-tsc/**',
-      'pnpm-lock.yaml',
-      '**/vite.config.*.timestamp*',
-      '**/vitest.config.*.timestamp*',
-    ],
-  },
+  ...sf,
 
-  ...nx.configs['flat/base'],
-  ...nx.configs['flat/typescript'],
-  ...nx.configs['flat/javascript'],
-
-  {
-    files: ['**/*.{ts,tsx,js,jsx,mjs,cjs}'],
-    rules: {
-      eqeqeq: ['error', 'always'],
-      'no-console': ['warn', { allow: ['warn', 'error'] }],
-      '@nx/enforce-module-boundaries': [
-        'error',
-        {
-          enforceBuildableLibDependency: true,
-          allow: ['^.*/eslint(\\.base)?\\.config\\.[cm]?js$'],
-          // depConstraints placeholder enquanto packages/ está vazio.
-          // Popular conforme os pacotes nascerem, ex.:
-          //   { sourceTag: 'scope:public',   onlyDependOnLibsWithTags: ['scope:public'] },
-          //   { sourceTag: 'scope:internal', onlyDependOnLibsWithTags: ['scope:public', 'scope:internal'] },
-          //   { sourceTag: 'type:plugin',    onlyDependOnLibsWithTags: ['type:config', 'type:utils', 'type:plugin'] },
-          //   { sourceTag: 'type:config',    onlyDependOnLibsWithTags: [] },
-          depConstraints: [{ sourceTag: '*', onlyDependOnLibsWithTags: ['*'] }],
-        },
-      ],
-    },
-  },
-
-  // Regras typed-aware. Exigem typescript-eslint com projectService:
-  // ativaremos por pacote quando os pacotes nascerem (cada um com seu tsconfig.lib.json).
-  // Mantemos aqui como referência declarada para evitar drift quando subirmos por pacote.
+  // Workspace-specific: typed-aware rules.
   {
     files: ['**/*.{ts,tsx}'],
     languageOptions: {
@@ -62,7 +43,24 @@ export default [
     },
   },
 
-  // Desliga TODAS as regras de formatação que conflitam com Prettier.
-  // Mantém ESLint focado em bugs/semântica; Prettier cuida do estilo.
-  prettier,
+  // Workspace-specific: enforce-module-boundaries with the depConstraints
+  // of THIS workspace. Generated projects will declare their own.
+  {
+    files: ['**/*.{ts,tsx,js,jsx,mjs,cjs}'],
+    rules: {
+      '@nx/enforce-module-boundaries': [
+        'error',
+        {
+          enforceBuildableLibDependency: true,
+          allow: ['^.*/eslint(\\.base)?\\.config\\.[cm]?js$'],
+          // TODO: popular conforme os pacotes nascerem. Exemplos:
+          //   { sourceTag: 'scope:public',  onlyDependOnLibsWithTags: ['scope:public'] },
+          //   { sourceTag: 'scope:internal', onlyDependOnLibsWithTags: ['scope:public', 'scope:internal'] },
+          //   { sourceTag: 'type:plugin',   onlyDependOnLibsWithTags: ['type:config', 'type:utils', 'type:plugin'] },
+          //   { sourceTag: 'type:config',   onlyDependOnLibsWithTags: [] },
+          depConstraints: [{ sourceTag: '*', onlyDependOnLibsWithTags: ['*'] }],
+        },
+      ],
+    },
+  },
 ];

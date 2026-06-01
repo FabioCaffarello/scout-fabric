@@ -80,6 +80,19 @@ generators do plugin Nx forem rodados.
   teste real e valida. **Não publica, não comita, não abre PR.** Definição
   em [`.claude/agents/package-creator.md`](.claude/agents/package-creator.md).
 
+## Skills
+
+Cada skill é fina: descreve quando usar e delega para o script. Lógica
+vive no script — quando mudar o procedimento, muda só o script.
+
+| Skill            | Trigger                                                     | Invoca                                                                                              |
+| ---------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `/validate`      | "validar", "rodar os checks", "verify local", "antes do PR" | `pnpm exec nx affected -t lint typecheck test build` (ou `nx run-many` com `--all`)                 |
+| `/smoke-publish` | "smoke test", "provar publish", "validar install"           | `./tools/smoke-publish.sh`                                                                          |
+| `/governance`    | "reaplicar governança", "branch protection", "drift check"  | `./scripts/apply-branch-protection.sh` — dry-run default; `--apply` exige diff prévio + confirmação |
+
+Definições em `.claude/skills/<name>/SKILL.md`.
+
 ## Norte sem burocracia
 
 Hooks rápidos, CI legível, docs que descrevem o que existe. Se uma checagem
