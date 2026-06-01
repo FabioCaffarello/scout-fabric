@@ -24,7 +24,7 @@
     "many:typecheck": "nx run-many -t typecheck",
     "many:test": "nx run-many -t test",
     "many:build": "nx run-many -t build",
-    "prepare": "husky"
+    "prepare": "husky && tsc --build packages/sf-eslint-config/tsconfig.lib.json"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.0.2",
