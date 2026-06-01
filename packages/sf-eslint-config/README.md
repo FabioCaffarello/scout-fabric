@@ -18,6 +18,17 @@ entries, in this order:
 4. [`eslint-config-prettier`](https://github.com/prettier/eslint-config-prettier)
    last, to disable rules that would conflict with Prettier.
 
+## Peer dependencies
+
+Install these alongside the package — the consumer brings the versions:
+
+| Package                  | Range     | Notes                                                                                                                                                            |
+| ------------------------ | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `eslint`                 | `^9.0.0`  | The host ESLint runtime.                                                                                                                                         |
+| `@nx/eslint-plugin`      | `^22.0.0` | Source of the `flat/*` presets and `@nx/enforce-module-boundaries`.                                                                                              |
+| `typescript-eslint`      | `^8.0.0`  | The `flat/typescript` preset does `require('typescript-eslint')` at load time, so the umbrella package (not just `@typescript-eslint/parser`) must be installed. |
+| `eslint-config-prettier` | `^10.0.0` | Spread as the last entry to disable rules that fight Prettier.                                                                                                   |
+
 ## Usage
 
 ```js
