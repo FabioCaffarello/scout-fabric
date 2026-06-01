@@ -65,8 +65,27 @@
     }
   ],
   "release": {
+    "projects": ["packages/*"],
+    "projectsRelationship": "independent",
+    "releaseTagPattern": "{projectName}@{version}",
     "version": {
-      "preVersionCommand": "pnpm exec nx run-many -t build"
+      "preVersionCommand": "pnpm exec nx run-many -t build",
+      "conventionalCommits": true,
+      "fallbackCurrentVersionResolver": "disk",
+      "generatorOptions": {
+        "specifierSource": "conventional-commits"
+      }
+    },
+    "git": {
+      "commit": true,
+      "commitMessage": "chore(release): publish {version}",
+      "tag": true,
+      "stageChanges": true
+    },
+    "changelog": {
+      "workspaceChangelog": false,
+      "projectChangelogs": true,
+      "automaticFromRef": true
     }
   }
 }
