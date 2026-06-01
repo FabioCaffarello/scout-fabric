@@ -50,15 +50,16 @@ nascem **fora** dela.
 
 ## Roadmap
 
-- **Release pipeline** (próximo lote):
-  - `nx.json#release` completo: `release.git` (`commit`, `tag`),
-    `release.changelog` (workspace + per-project), `release.version`
-    (conventional bumps).
-  - Smoke test de publish no Verdaccio — `.verdaccio/config.yml` e o target
-    `local-registry` já estão plantados; falta o workflow que sobe o
-    registry, publica e verifica.
-  - `NPM_TOKEN` como GitHub Actions secret + workflow de release (separado do
-    `ci.yml`).
+- **Primeiro publish real no npmjs** — falta só o `NPM_TOKEN` (automation,
+  scope `@fabio.caffarello/*`) e descomentar o bloco em `release.yml`.
+  Checklist em [`../release.md`](../release.md). Tudo o mais já está
+  pronto e provado:
+  - `nx.json#release` independente + conventional commits + per-project
+    changelog.
+  - Smoke `tools/smoke-publish.sh` prova `publish → install → use`
+    contra Verdaccio local.
+  - `.github/workflows/release.yml` (manual) roda `nx release --dry-run`
+    e opcionalmente o smoke em CI.
 - `@fabio.caffarello/sf-eslint-config`.
 - `@fabio.caffarello/sf-plugin` — generators, executors, migrations.
 - Catálogo de scout (estrutura, schemas, conteúdo).
