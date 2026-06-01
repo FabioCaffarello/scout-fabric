@@ -7,22 +7,27 @@ conteúdo aqui — este arquivo só descreve o que muda comportamento.
 
 ## Comandos que funcionam hoje
 
-| Comando                                                          | O que faz                                                               |
-| ---------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| `pnpm install`                                                   | Restaura deps e instala/atualiza hooks (`prepare`).                     |
-| `pnpm lint`                                                      | `nx run-many -t lint`. No-op enquanto `packages/` está vazio.           |
-| `pnpm typecheck`                                                 | `nx run-many -t typecheck`. No-op enquanto `packages/` está vazio.      |
-| `pnpm format:check`                                              | Verifica formatação Prettier do repo.                                   |
-| `pnpm format`                                                    | Aplica Prettier.                                                        |
-| `echo "<msg>" \| pnpm commitlint`                                | Linta uma mensagem via stdin.                                           |
-| `pnpm affected:lint`                                             | Lint só nos projetos afetados desde `main` (mesmo que CI roda em PR).   |
-| `pnpm affected:typecheck`                                        | Typecheck nos afetados.                                                 |
-| `pnpm affected:test`                                             | Test nos afetados.                                                      |
-| `pnpm affected:build`                                            | Build nos afetados.                                                     |
-| `pnpm many:lint` / `many:typecheck` / `many:test` / `many:build` | Mesmos targets em **todos** os projetos (o que CI faz em push em main). |
-| `pnpm exec nx affected -t lint --base=<ref>`                     | Para escolher um base ≠ `main`.                                         |
-| `pnpm exec nx show projects`                                     | Lista projetos reconhecidos pelo Nx.                                    |
-| `pnpm graph`                                                     | Abre o grafo (interativo). Use `--file=<path>` para `.json`/`.html`.    |
+| Comando                                                          | O que faz                                                                                                             |
+| ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `pnpm install`                                                   | Restaura deps e instala/atualiza hooks (`prepare`).                                                                   |
+| `pnpm lint`                                                      | `nx run-many -t lint` em todos os projetos.                                                                           |
+| `pnpm typecheck`                                                 | `nx run-many -t typecheck` em todos os projetos.                                                                      |
+| `pnpm test`                                                      | `nx run-many -t test`. Vitest com `@nx/vite/plugin`.                                                                  |
+| `pnpm test:watch`                                                | `nx run-many -t test --watch` — para iteração em um pacote específico, prefira `pnpm exec nx run <pkg>:test --watch`. |
+| `pnpm format:check`                                              | Verifica formatação Prettier do repo.                                                                                 |
+| `pnpm format`                                                    | Aplica Prettier.                                                                                                      |
+| `echo "<msg>" \| pnpm commitlint`                                | Linta uma mensagem via stdin.                                                                                         |
+| `pnpm affected:lint`                                             | Lint só nos projetos afetados desde `main` (mesmo que CI roda em PR).                                                 |
+| `pnpm affected:typecheck`                                        | Typecheck nos afetados.                                                                                               |
+| `pnpm affected:test`                                             | Test nos afetados.                                                                                                    |
+| `pnpm affected:build`                                            | Build nos afetados.                                                                                                   |
+| `pnpm many:lint` / `many:typecheck` / `many:test` / `many:build` | Mesmos targets em **todos** os projetos (o que CI faz em push em main).                                               |
+| `pnpm exec nx affected -t lint --base=<ref>`                     | Para escolher um base ≠ `main`.                                                                                       |
+| `pnpm exec nx show projects`                                     | Lista projetos reconhecidos pelo Nx.                                                                                  |
+| `pnpm graph`                                                     | Abre o grafo (interativo). Use `--file=<path>` para `.json`/`.html`.                                                  |
+| `pnpm exec nx release --dry-run --skip-publish`                  | Preview do bump e changelog. Não toca em git nem npm.                                                                 |
+| `./tools/smoke-publish.sh`                                       | Smoke do ciclo publish→install→use contra Verdaccio local. Provas em `docs/release.md`.                               |
+| `./scripts/apply-branch-protection.sh`                           | Diff entre `governance/branch-protection.main.json` e o estado live (dry-run). `--apply` para PUT.                    |
 
 Use `pnpm exec <bin>`, **nunca** `npx` — workspace é pnpm-puro e `.npmrc`
 carrega chaves pnpm-only.
@@ -45,6 +50,12 @@ carrega chaves pnpm-only.
 - **Hooks rápidos.** Pre-commit ≤ ~5s. `typecheck` e `test` ficam para CI,
   não para pre-commit.
 - **CI da fábrica ≠ CI dos projetos-filhos.** Detalhes em [`docs/ci.md`](docs/ci.md).
+- **Governança é código.** Mudar a proteção da `main` significa editar
+  `governance/branch-protection.main.json` + PR + `--apply`. Detalhes em
+  [`docs/governance.md`](docs/governance.md).
+- **Release não publica sozinho.** Workflow é `workflow_dispatch` apenas,
+  e o bloco de publish real está comentado. `docs/release.md` tem a
+  checklist de ativação.
 
 ## Onde pôr coisas novas
 

@@ -33,6 +33,8 @@ nascem **fora** dela.
 
 ## Estado atual
 
+**Foundation (camada 0):**
+
 - Workspace Nx 22.7.5, TS 5.9, modo TS Solution.
 - `tsconfig.base.json` estrito (inclui `noUncheckedIndexedAccess`).
 - ESLint 9 flat + `@nx/eslint-plugin` (com `enforce-module-boundaries`
@@ -42,30 +44,63 @@ nascem **fora** dela.
 - Husky v9 ativo: `pre-commit` roda `lint-staged`; `commit-msg` roda
   `commitlint` (conventional).
 - Node pin — `.nvmrc=24`, `engines.node: ">=22.0.0"`.
-- **CI ativo** — `.github/workflows/ci.yml`: 3 jobs (`format`, `commit-msg`,
-  `verify`) com `nx-set-shas` resolvendo `NX_BASE`/`NX_HEAD`. PR roda
-  `affected`; push em `main` roda `run-many`. Detalhes em
-  [`ci.md`](../ci.md).
-- **Governança versionada** — proteção da `main` declarada em
-  `governance/branch-protection.main.json`, aplicada por
-  `scripts/apply-branch-protection.sh`. Detalhes em
+- `nx.json` com `namedInputs.production` excluindo testes/configs de
+  runner, `sharedGlobals` modelando os arquivos cross-workspace,
+  `targetDefaults.test` semeado.
+
+**Pacotes (camada 0.9):** `packages/sf-tsconfig` — base TS reusável
+(`base.json` + `lib.json`). Único pacote real até agora.
+
+**CI (camada 1):** `.github/workflows/ci.yml` — 3 jobs (`format`,
+`commit-msg`, `verify`) com `nx-set-shas`. PR roda `affected`; push em
+`main` roda `run-many`. Branch protection na `main` exige os 3 checks.
+Detalhes em [`ci.md`](../ci.md).
+
+**Testes (camada C):** Vitest 4 via `@nx/vite/plugin`. `sf-tsconfig`
+tem `test` target real (7 testes assertando shape de `base.json`/`lib.json`).
+Coverage `v8`, reporters `text+html`, sem thresholds.
+
+**Release (camada A):** ✅ provado / ⏳ pendente:
+
+- ✅ `nx.json#release` configurado (independente + conventional commits +
+  per-project changelog).
+- ✅ `tools/smoke-publish.sh` prova `publish → install → use` contra
+  Verdaccio local, com asserção comportamental (`noUncheckedIndexedAccess`
+  falha como esperado no consumidor).
+- ✅ `.github/workflows/release.yml` (manual) com job `dry-run` (sempre)
+  e `smoke` (opt-in via input).
+- ⏳ Publish real no npmjs: falta criar secret `NPM_TOKEN` (automation,
+  scoped to `@fabio.caffarello/*`) e descomentar bloco em `release.yml`.
+  Checklist em [`release.md`](../release.md).
+
+**Governança (camada B):** ✅ provado / ⏳ pendente:
+
+- ✅ `governance/branch-protection.main.json` versionado + script
+  idempotente `scripts/apply-branch-protection.sh`. Detalhes em
   [`governance.md`](../governance.md).
-- `packages/` contém `sf-tsconfig` (TS configs base re-utilizáveis).
+- ✅ `.github/workflows/governance-drift.yml` — `workflow_dispatch` +
+  cron semanal — detecta drift entre spec e estado live, **nunca aplica**.
+- ⏳ Secret `GOVERNANCE_ADMIN_TOKEN` (PAT com `Repository administration: Read`).
+  Sem ele, o drift check falha por permissão. Quando configurado, vira
+  verde semanal.
 
 ## Roadmap
 
-- **Primeiro publish real no npmjs** — falta só o `NPM_TOKEN` (automation,
-  scope `@fabio.caffarello/*`) e descomentar o bloco em `release.yml`.
-  Checklist em [`../release.md`](../release.md). Tudo o mais já está
-  pronto e provado:
-  - `nx.json#release` independente + conventional commits + per-project
-    changelog.
-  - Smoke `tools/smoke-publish.sh` prova `publish → install → use`
-    contra Verdaccio local.
-  - `.github/workflows/release.yml` (manual) roda `nx release --dry-run`
-    e opcionalmente o smoke em CI.
-- `@fabio.caffarello/sf-eslint-config`.
-- `@fabio.caffarello/sf-plugin` — generators, executors, migrations.
+**Pendências operacionais** (não-software):
+
+- `NPM_TOKEN` (automation, scope `@fabio.caffarello/*`) → ativa publish real.
+- `GOVERNANCE_ADMIN_TOKEN` (PAT, `Repository administration: Read`) →
+  ativa drift check verde.
+
+**Próximos pacotes** (camada de produto):
+
+- `@fabio.caffarello/sf-eslint-config` — extrai `eslint.config.mjs` raiz
+  como pacote consumível por projetos externos.
+- `@fabio.caffarello/sf-plugin` — Nx plugin (generators + executors +
+  migrations). A "CLI da fábrica".
+
+**Mais à frente:**
+
 - Catálogo de scout (estrutura, schemas, conteúdo).
 - Kit de scout — subagents Claude, slash-commands.
 - `forge update` — propagação de transformações a repos externos.
