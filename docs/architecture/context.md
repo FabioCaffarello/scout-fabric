@@ -50,6 +50,8 @@ nascem **fora** dela.
 
 **Pacotes (camada 0.9):** `packages/sf-tsconfig` — base TS reusável
 (`base.json` + `lib.json`). Único pacote real até agora.
+Convenção para criar um novo `sf-*` (generator + ajustes obrigatórios)
+em [`../conventions/package.md`](../conventions/package.md).
 
 **CI (camada 1):** `.github/workflows/ci.yml` — 3 jobs (`format`,
 `commit-msg`, `verify`) com `nx-set-shas`. PR roda `affected`; push em
