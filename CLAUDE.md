@@ -62,11 +62,23 @@ carrega chaves pnpm-only.
 Os diretórios abaixo são a convenção pretendida; vão materializar conforme
 generators do plugin Nx forem rodados.
 
-- **Pacote publicável novo** → `packages/sf-<pkg>/`.
+- **Pacote publicável novo** → `packages/sf-<pkg>/`. **Use o subagent
+  `package-creator`** (veja abaixo) — não escreva à mão.
 - **Plugin Nx** → `packages/sf-plugin/`.
 - **Catálogo de scout / schemas / kit de scout** → ainda não definido; ver
   roadmap em `context.md`.
 - **Documentação de decisão arquitetural** → `docs/architecture/`.
+- **Convenções de criação de pacote** → `docs/conventions/package.md`
+  (fonte canônica; o subagent consulta).
+
+## Subagents
+
+- **`package-creator`** — encapsula o checklist de
+  `docs/conventions/package.md` para criar um pacote `sf-*` novo.
+  Disparado por pedidos como "criar pacote sf-X" ou "scaffold sf-X".
+  Roda o generator, aplica os ajustes obrigatórios, escreve o primeiro
+  teste real e valida. **Não publica, não comita, não abre PR.** Definição
+  em [`.claude/agents/package-creator.md`](.claude/agents/package-creator.md).
 
 ## Norte sem burocracia
 
