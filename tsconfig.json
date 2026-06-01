@@ -5,6 +5,9 @@
   "references": [
     {
       "path": "./packages/sf-tsconfig"
+    },
+    {
+      "path": "./packages/sf-eslint-config"
     }
   ]
 }
