@@ -13,6 +13,8 @@ export default [
       '**/tmp/**',
       '**/out-tsc/**',
       'pnpm-lock.yaml',
+      '**/vite.config.*.timestamp*',
+      '**/vitest.config.*.timestamp*',
     ],
   },
 
