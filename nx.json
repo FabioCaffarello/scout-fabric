@@ -71,10 +71,7 @@
     "version": {
       "preVersionCommand": "pnpm exec nx run-many -t build",
       "conventionalCommits": true,
-      "fallbackCurrentVersionResolver": "disk",
-      "generatorOptions": {
-        "specifierSource": "conventional-commits"
-      }
+      "fallbackCurrentVersionResolver": "disk"
     },
     "git": {
       "commit": true,
