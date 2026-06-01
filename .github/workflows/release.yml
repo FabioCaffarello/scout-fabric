@@ -1,0 +1,76 @@
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_smoke:
+        description: 'Also run the Verdaccio smoke test'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+env:
+  HUSKY: '0'
+
+jobs:
+  dry-run:
+    name: release dry-run
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: nx release --dry-run --skip-publish
+        run: pnpm exec nx release --dry-run --skip-publish --verbose
+
+      # ----------------------------------------------------------------
+      # TODO: enable real publish when ready.
+      # Checklist (see docs/release.md):
+      #   1) Create an npm automation token scoped to @fabio.caffarello/*.
+      #      Save it as the repo secret `NPM_TOKEN`.
+      #   2) Confirm 2FA is enabled on the npm account that owns the
+      #      scope. Automation tokens bypass 2FA at publish time, but
+      #      the account itself still needs it.
+      #   3) Remove the `--dry-run` flag from the step above (or replace
+      #      it with the step below), and grant id-token: write here for
+      #      npm provenance.
+      #
+      # permissions:
+      #   contents: read
+      #   id-token: write   # npm provenance via OIDC
+      #
+      # - name: nx release (real publish)
+      #   env:
+      #     NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      #     NPM_CONFIG_PROVENANCE: 'true'
+      #   run: pnpm exec nx release
+      # ----------------------------------------------------------------
+
+  smoke:
+    name: verdaccio smoke
+    if: ${{ inputs.run_smoke }}
+    needs: dry-run
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: smoke publish to local Verdaccio
+        run: ./tools/smoke-publish.sh
