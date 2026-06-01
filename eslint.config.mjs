@@ -16,10 +16,9 @@
 //     `depConstraints`.
 //
 // Note: Node resolves `@fabio.caffarello/sf-eslint-config` to its built
-// `dist/index.js` (its `exports."."` falls back to `default` because Node
-// does not honour the `@scout-fabric/source` condition at runtime). The
-// `lint` target therefore has `dependsOn: ['sf-eslint-config:build']` in
-// `nx.json` so the dist is fresh before any lint runs.
+// `dist/index.js` via `exports.default`. The `lint` target therefore has
+// `dependsOn: ['sf-eslint-config:build']` in `nx.json` so the dist is
+// fresh before any lint runs.
 
 import sf from '@fabio.caffarello/sf-eslint-config';
 import tseslint from 'typescript-eslint';

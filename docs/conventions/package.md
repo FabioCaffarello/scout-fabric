@@ -147,7 +147,6 @@ O generator dá um bom esqueleto. Garanta:
     "./package.json": "./package.json",
     // ...uma entrada por artefato exportado (ex.: "./base.json": "./base.json")
     ".": {
-      "@scout-fabric/source": "./src/index.ts", // INVARIANTE: condition de dev
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js",
@@ -172,10 +171,12 @@ O generator dá um bom esqueleto. Garanta:
 }
 ```
 
-**Não confunda** `@scout-fabric/source` (condition interna, dev-time)
-com `@fabio.caffarello/sf-<pkg>` (scope publicado). Os dois aparecem
-juntos no `exports` por design e nunca devem ser permutados —
-referência em [`../architecture/context.md`](../architecture/context.md).
+**Condition `@scout-fabric/source` é dev-time apenas.** Ela vive no
+`tsconfig.base.json#customConditions` para o TS do workspace resolver
+imports de pacote para source em vez de dist. **Nunca aparece no
+`exports` publicado** — apontaria para `src/` que não está no tarball, e
+um consumidor externo que adicionasse a condition no próprio tsconfig
+quebraria. Referência em [`../architecture/context.md`](../architecture/context.md).
 
 **Sincronizar o lockfile.** Após editar `dependencies` /
 `peerDependencies`, rodar `pnpm install` no root (sem
@@ -196,6 +197,39 @@ no source do próprio pacote precisam de
   ignoredDependencies: ['eslint'],
 }]
 ```
+
+**Peers contratuais verificam-se em runtime, não em manifesto.** Para
+pacotes que espalham presets de terceiros (ex.: `sf-eslint-config`
+espalha `nx.configs['flat/typescript']`), o que o preset
+**`require()`s em runtime** pode divergir do que ele **declara como
+peer**. Caso real: `@nx/eslint-plugin` declara
+`@typescript-eslint/parser` como peer, mas o preset
+`flat/typescript` faz `require('typescript-eslint')` (a umbrella) no
+load. Quem espalha o preset tem que declarar a umbrella como peer,
+não o parser. Nenhum `pnpm pack --dry-run`, `@nx/dependency-checks`
+ou typecheck pega isso — só `tools/smoke-publish.sh`, que instala o
+pacote num consumidor descartável e roda a ferramenta de verdade.
+**Sempre rode o smoke antes de publicar um pacote que espalha
+presets de terceiros.**
+
+**`.d.ts` do default exportado deve ser neutro.** Para pacotes JS
+publicáveis, anote o tipo do `export default` explicitamente com
+tipos vindos de um peer já declarado (ex.: `Linter.Config[]` de
+`eslint`). Sem anotação, o TS infere a partir do que é espalhado e o
+`.d.ts` resultante pode arrastar uma referência a um pacote
+transitivo (ex.: `import("typescript-eslint").FlatConfig.Config`)
+que o consumidor não tem instalado — quebra para quem está sem
+`skipLibCheck`. Confirme abrindo o `dist/*.d.ts` e procurando por
+`import("<pkg>")`: se aparece, anote no source.
+
+**`importHelpers` honesto.** A heurística em
+`@nx/js/find-npm-dependencies` exige `tslib` em `dependencies`
+sempre que o `tsconfig.lib.json` efetivo do pacote tem
+`importHelpers: true`, independente do dist emitido usar helper.
+Se o source do pacote não dispara helpers (sem async, sem spread
+em target < ES2022, sem decorators), override `importHelpers: false`
+no `tsconfig.lib.json` do pacote e omita o `tslib`. Confirme com
+`grep tslib dist/` — deve sair vazio.
 
 ### d) README do pacote
 
@@ -235,24 +269,25 @@ que o tarball, instalado num consumidor real, faz o que o spec diz.
 
 ## 5) Invariantes vs. variáveis por pacote
 
-| Aspecto                                 | Invariante (sempre)                             | Varia por pacote                                                       |
-| --------------------------------------- | ----------------------------------------------- | ---------------------------------------------------------------------- |
-| Nome do projeto Nx                      | `sf-<pkg>`                                      | `<pkg>`                                                                |
-| Scope publicado                         | `@fabio.caffarello/sf-<pkg>`                    | —                                                                      |
-| Bundler                                 | `tsc` (via `@nx/js/typescript`)                 | —                                                                      |
-| Build command efetivo                   | `tsc --build tsconfig.lib.json`                 | —                                                                      |
-| Linter                                  | `eslint` (estende `eslint.config.mjs` raiz)     | —                                                                      |
-| Test runner                             | `vitest` via `@nx/vite/plugin`                  | —                                                                      |
-| Test env                                | `node`                                          | —                                                                      |
-| Coverage                                | v8 + `text,html` + `./coverage`, sem thresholds | —                                                                      |
-| `customConditions` do exports           | `@scout-fabric/source` → `./src/index.ts`       | —                                                                      |
-| `publishConfig.access`                  | `public`                                        | —                                                                      |
-| Tag `scope:*`                           | `scope:public`                                  | (interno usaria `scope:internal` — não há ainda)                       |
-| Tag `type:*`                            | —                                               | `type:config` \| `type:eslint-config` \| `type:plugin` \| `type:utils` |
-| `engines.node` (no manifesto publicado) | herdar do workspace (`>=22.0.0`) ou ≥ ele       | pacotes com requisito mais alto podem subir                            |
-| O que o pacote exporta                  | —                                               | JSON configs, função/objeto TS, generators/executors, etc.             |
-| O que o primeiro teste verifica         | —                                               | o comportamento concreto do artefato                                   |
-| `dependencies` runtime                  | `tslib` (default)                               | + dependências reais do artefato                                       |
+| Aspecto                                   | Invariante (sempre)                             | Varia por pacote                                                       |
+| ----------------------------------------- | ----------------------------------------------- | ---------------------------------------------------------------------- |
+| Nome do projeto Nx                        | `sf-<pkg>`                                      | `<pkg>`                                                                |
+| Scope publicado                           | `@fabio.caffarello/sf-<pkg>`                    | —                                                                      |
+| Bundler                                   | `tsc` (via `@nx/js/typescript`)                 | —                                                                      |
+| Build command efetivo                     | `tsc --build tsconfig.lib.json`                 | —                                                                      |
+| Linter                                    | `eslint` (estende `eslint.config.mjs` raiz)     | —                                                                      |
+| Test runner                               | `vitest` via `@nx/vite/plugin`                  | —                                                                      |
+| Test env                                  | `node`                                          | —                                                                      |
+| Coverage                                  | v8 + `text,html` + `./coverage`, sem thresholds | —                                                                      |
+| `customConditions` no manifesto publicado | **ausente** (vive só em `tsconfig.base.json`)   | —                                                                      |
+| `publishConfig.access`                    | `public`                                        | —                                                                      |
+| Tag `scope:*`                             | `scope:public`                                  | (interno usaria `scope:internal` — não há ainda)                       |
+| Tag `type:*`                              | —                                               | `type:config` \| `type:eslint-config` \| `type:plugin` \| `type:utils` |
+| `engines.node` (no manifesto publicado)   | herdar do workspace (`>=22.0.0`) ou ≥ ele       | pacotes com requisito mais alto podem subir                            |
+| O que o pacote exporta                    | —                                               | JSON configs, função/objeto TS, generators/executors, etc.             |
+| O que o primeiro teste verifica           | —                                               | o comportamento concreto do artefato                                   |
+| `dependencies` runtime                    | `tslib` quando o source emite helpers           | + deps reais; ausente em pacotes JSON-puro (ver §8)                    |
+| Build target (inferido)                   | presente quando há `tsconfig.lib.json`          | ausente em pacotes JSON-puro (ver §8)                                  |
 
 ---
 
@@ -291,3 +326,54 @@ Coisas que vivem em outros docs e não devem ser duplicadas:
 - Pipeline de CI, branch protection → [`../ci.md`](../ci.md) e [`../governance.md`](../governance.md).
 - Pipeline de release, checklist do `NPM_TOKEN` → [`../release.md`](../release.md).
 - Naming/topologia/condition `@scout-fabric/source` → [`../architecture/context.md`](../architecture/context.md).
+
+---
+
+## 8) Variantes conhecidas
+
+Se o pacote não bate com a forma "lib TS publicável padrão", siga a
+variante correspondente — os ajustes substituem (não somam aos) da
+seção 3.
+
+### 8.a) Config JSON-puro (ex.: `sf-tsconfig`)
+
+Pacote que entrega só artefatos JSON estáticos via subpath exports,
+sem dimensão JS publicada.
+
+**Marcador para reconhecer:** sem `tsconfig.lib.json`, sem `dist/`,
+sem `dependencies`, sem entrada `"."` em `exports`. Se um pacote
+tem qualquer um desses, **não** é JSON-puro — é a forma padrão.
+
+**O que diverge da seção 3:**
+
+- `package.json` sem `main`, `module`, `types`. `exports` tem
+  apenas subpath exports apontando para os JSONs:
+  ```jsonc
+  "exports": {
+    "./package.json": "./package.json",
+    "./base.json": "./base.json",
+    "./lib.json": "./lib.json"
+  }
+  ```
+- `files` lista apenas os JSONs + `README.md` (sem `dist`, sem
+  filtro de `tsbuildinfo`).
+- `dependencies` ausente. Pacote é estático; não emite JS.
+- `tsconfig.lib.json` **removido**. Sem ele, `@nx/js/typescript`
+  deixa de inferir o target `build`. `nx run-many -t build` pula
+  em silêncio; `preVersionCommand` (`pnpm exec nx run-many -t build`)
+  continua válido.
+- `tsconfig.json` raiz do pacote referencia só
+  `./tsconfig.spec.json` (sem `tsconfig.lib.json`).
+- `tsconfig.spec.json` sem `references` ao `tsconfig.lib.json`.
+- README declara o contrato implícito do JSON (ex.: `TypeScript >= 5.0`
+  para `module: nodenext` + flags de strictness modernas).
+- Teste comportamental (seção 4) lê os JSONs via `fs.readFileSync`,
+  não via `import`. Não depende de build.
+
+**Quando usar:** o pacote entrega configuração estática para outras
+ferramentas (`tsconfig`, `package.json`-style configs, schemas
+`.json`, etc.).
+
+**Quando NÃO usar:** se entrega função, classe, objeto, executor,
+generator, plugin Nx, flat config de ESLint — qualquer coisa que é
+código carregado, use a forma padrão.
