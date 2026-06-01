@@ -144,7 +144,28 @@ Garantir (somar ao que o generator deixou; não recriar do zero):
 - `"files"`: incluir `dist`, `README.md`, `!**/*.tsbuildinfo`, e os
   artefatos publicáveis (JSON, assets, etc.).
 - `"dependencies"`: manter `tslib` + adicionar runtime deps reais
-  do artefato.
+  do artefato. **Só adicionar o que o pacote realmente importa** —
+  o `@nx/dependency-checks` reclama no lint se uma dep declarada não
+  for usada (caso real: `typescript-eslint` em deps mas não importado
+  na config → flag legítima).
+- `"peerDependencies"`: declarar peers contratuais para o consumidor
+  (ex.: `eslint` para um pacote de config ESLint). Esses peers **não
+  são importados** no source do pacote — só assinam o contrato.
+  Adicionar cada peer dessa natureza à lista `ignoredDependencies`
+  da regra `@nx/dependency-checks` no `eslint.config.mjs` do pacote:
+
+  ```js
+  '@nx/dependency-checks': ['error', {
+    ignoredFiles: ['{projectRoot}/eslint.config.{js,cjs,mjs,ts,cts,mts}'],
+    ignoredDependencies: ['eslint'],  // ou outros peers contratuais
+  }]
+  ```
+
+**Sincronizar o lockfile.** Após editar `dependencies` /
+`peerDependencies` aqui, rodar `pnpm install` no root para o
+`pnpm-lock.yaml` refletir. Commitar o lockfile junto. CI roda com
+`--frozen-lockfile` — esquecer derruba os 3 jobs antes mesmo do
+verify chegar nos targets.
 
 **Não trocar** `name`, `version`, `type`, `main`, `module`, `types` —
 o generator já deixou corretos.
@@ -188,6 +209,7 @@ por algo que cubra, em poucos parágrafos:
 Na ordem:
 
 ```sh
+pnpm install                                # sincroniza lockfile se passo 6 mexeu em deps
 pnpm exec nx reset
 pnpm exec nx run sf-<pkg>:typecheck
 pnpm exec nx run sf-<pkg>:lint
