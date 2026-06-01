@@ -2,26 +2,15 @@
   "name": "@fabio.caffarello/sf-tsconfig",
   "version": "0.0.1",
   "type": "module",
-  "main": "./dist/index.js",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
   "exports": {
     "./package.json": "./package.json",
     "./base.json": "./base.json",
-    "./lib.json": "./lib.json",
-    ".": {
-      "@scout-fabric/source": "./src/index.ts",
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "default": "./dist/index.js"
-    }
+    "./lib.json": "./lib.json"
   },
   "files": [
-    "dist",
     "base.json",
     "lib.json",
-    "README.md",
-    "!**/*.tsbuildinfo"
+    "README.md"
   ],
   "publishConfig": {
     "access": "public"
@@ -32,8 +21,5 @@
       "scope:public",
       "type:config"
     ]
-  },
-  "dependencies": {
-    "tslib": "^2.3.0"
   }
 }
