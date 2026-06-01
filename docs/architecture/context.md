@@ -46,6 +46,10 @@ nascem **fora** dela.
   `verify`) com `nx-set-shas` resolvendo `NX_BASE`/`NX_HEAD`. PR roda
   `affected`; push em `main` roda `run-many`. Detalhes em
   [`ci.md`](../ci.md).
+- **Governança versionada** — proteção da `main` declarada em
+  `governance/branch-protection.main.json`, aplicada por
+  `scripts/apply-branch-protection.sh`. Detalhes em
+  [`governance.md`](../governance.md).
 - `packages/` contém `sf-tsconfig` (TS configs base re-utilizáveis).
 
 ## Roadmap
