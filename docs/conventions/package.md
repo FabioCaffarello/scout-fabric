@@ -177,6 +177,26 @@ com `@fabio.caffarello/sf-<pkg>` (scope publicado). Os dois aparecem
 juntos no `exports` por design e nunca devem ser permutados —
 referência em [`../architecture/context.md`](../architecture/context.md).
 
+**Sincronizar o lockfile.** Após editar `dependencies` /
+`peerDependencies`, rodar `pnpm install` no root (sem
+`--frozen-lockfile`) para o `pnpm-lock.yaml` refletir. Commitar o
+lockfile junto. CI roda com `--frozen-lockfile` e os três jobs
+quebram antes mesmo de `verify` chegar nos targets.
+
+**Peer deps invisíveis ao linter.** O `@nx/dependency-checks` mira
+`dependencies` + `peerDependencies` e pede que algo no source do
+pacote importe cada entrada. Peers que são **contratos para o
+consumidor** (ex.: `eslint`, `react`) e que não aparecem em `import`
+no source do próprio pacote precisam de
+`ignoredDependencies: [...]` no `eslint.config.mjs` do pacote:
+
+```js
+'@nx/dependency-checks': ['error', {
+  ignoredFiles: ['{projectRoot}/eslint.config.{js,cjs,mjs,ts,cts,mts}'],
+  ignoredDependencies: ['eslint'],
+}]
+```
+
 ### d) README do pacote
 
 Substituir o placeholder por algo que explique:
