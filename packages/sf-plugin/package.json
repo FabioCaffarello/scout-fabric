@@ -1,0 +1,63 @@
+{
+  "name": "@fabio.caffarello/sf-plugin",
+  "version": "0.0.1",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "!**/*.tsbuildinfo",
+    "generators.json"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "nx": {
+    "name": "sf-plugin",
+    "targets": {
+      "build": {
+        "executor": "@nx/js:tsc",
+        "outputs": [
+          "{options.outputPath}"
+        ],
+        "options": {
+          "outputPath": "packages/sf-plugin/dist",
+          "main": "packages/sf-plugin/src/index.ts",
+          "tsConfig": "packages/sf-plugin/tsconfig.lib.json",
+          "rootDir": "packages/sf-plugin/src",
+          "generatePackageJson": false,
+          "assets": [
+            {
+              "input": "./packages/sf-plugin/src",
+              "glob": "**/!(*.ts)",
+              "output": "."
+            },
+            {
+              "input": "./packages/sf-plugin/src",
+              "glob": "**/*.d.ts",
+              "output": "."
+            }
+          ]
+        }
+      }
+    },
+    "tags": [
+      "scope:public",
+      "type:plugin"
+    ]
+  },
+  "dependencies": {
+    "@nx/devkit": "^22.0.0",
+    "tslib": "^2.3.0"
+  },
+  "generators": "./generators.json"
+}

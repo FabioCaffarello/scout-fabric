@@ -1,0 +1,9 @@
+{
+  "generators": {
+    "marker": {
+      "factory": "./dist/generators/marker/marker",
+      "schema": "./dist/generators/marker/schema.json",
+      "description": "Creates a marker file (smoke test for sf-plugin)"
+    }
+  }
+}

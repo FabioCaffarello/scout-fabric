@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/schema",
+  "$id": "Marker",
+  "title": "Marker generator",
+  "description": "Creates a marker file at <directory>/<name>.md. Smoke generator for sf-plugin.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Marker name. Used as the file name and inside the file body.",
+      "$default": {
+        "$source": "argv",
+        "index": 0
+      },
+      "x-prompt": "Marker name?"
+    },
+    "directory": {
+      "type": "string",
+      "description": "Workspace-relative directory where the marker file will be created.",
+      "x-prompt": "Directory for the marker file?"
+    }
+  },
+  "required": ["name", "directory"],
+  "additionalProperties": false
+}
