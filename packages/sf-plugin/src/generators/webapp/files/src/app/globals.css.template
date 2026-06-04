@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+/*
+ * O `@theme inline` do template do create-next-app foi REMOVIDO pelo
+ * sf-plugin:webapp. O bloco original carregava tokens específicos do
+ * template marketing-Vercel (Geist fonts, --color-background fixo) que
+ * conflitam com o @fabio.caffarello/react-design-system.
+ *
+ * Tokens semânticos do projeto vêm via o CSS bundle do RDS, importado
+ * em src/app/layout.tsx antes deste arquivo:
+ *
+ *   import "@fabio.caffarello/react-design-system/styles";
+ *   import "./globals.css";
+ *
+ * Para customizar tokens, ver docs do RDS sobre @theme override ou
+ * use o ThemeProvider/ConfigProvider via providers.tsx.
+ */

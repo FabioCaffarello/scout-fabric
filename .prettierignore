@@ -7,3 +7,9 @@
 
 # Lockfiles are managed by package managers; never format
 pnpm-lock.yaml
+
+# Generator fixtures are captured snapshots from external tools (e.g.
+# create-next-app). They MUST remain byte-identical to what the upstream
+# tool produced — that is the point of having a fixture. Reformatting
+# them would mean testing against a fiction, not the real output.
+**/__fixtures__/**

@@ -1,0 +1,56 @@
+# <%= name %>
+
+Webapp gerado por `@fabio.caffarello/sf-plugin:webapp`.
+
+## Stack
+
+- **Next.js 16** — App Router, Turbopack como bundler default
+- **React 19 + TypeScript 5**
+- **Tailwind CSS v4** — via `@tailwindcss/postcss` (CSS-first config)
+- **[`@fabio.caffarello/react-design-system`](https://www.npmjs.com/package/@fabio.caffarello/react-design-system)** —
+  design system + tokens semânticos + 3 variantes de tema
+  (`creative`, `minimal`, `tech`)
+
+## Comandos
+
+```sh
+pnpm install
+pnpm dev          # next dev (Turbopack)
+pnpm build        # next build
+pnpm start        # next start
+pnpm lint         # eslint (eslint-config-next + @fabio.caffarello/sf-eslint-config)
+```
+
+## Tema
+
+O design system segue `prefers-color-scheme` do OS automaticamente.
+Para forçar light/dark, ajuste o `<html data-theme="light|dark">`
+em `src/app/layout.tsx`. Para usar uma variante temática
+(`creative` / `minimal` / `tech`), adicione `data-variant="<nome>"`
+ao mesmo elemento.
+
+## Estrutura — fronteira client/server
+
+`src/app/providers.tsx` envolve a árvore em `<AppProvider>` do RDS
+e é um **client component** (`"use client"`). O `layout.tsx` é
+server component e importa `Providers` dele.
+
+**NÃO mova o `<AppProvider>` para dentro do `layout.tsx`** —
+providers React precisam de client boundary e o build do Next
+quebra com `createContext only works in Client Components`.
+
+## CSS
+
+`src/app/layout.tsx` importa nesta ordem:
+
+```ts
+import "@fabio.caffarello/react-design-system/styles";
+import "./globals.css";
+```
+
+A ordem importa: o CSS do RDS vem primeiro para que classes
+Tailwind escritas no projeto vençam em conflitos de cascata.
+
+`src/app/globals.css` mantém apenas `@import "tailwindcss";` —
+os tokens vêm do bundle do RDS, não do `@theme inline` do
+template Next (removido).

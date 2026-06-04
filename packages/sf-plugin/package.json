@@ -39,12 +39,20 @@
             {
               "input": "./packages/sf-plugin/src",
               "glob": "**/!(*.ts)",
-              "output": "."
+              "output": ".",
+              "ignore": [
+                "**/__fixtures__/**",
+                "**/__fixtures__/**/.*"
+              ]
             },
             {
               "input": "./packages/sf-plugin/src",
               "glob": "**/*.d.ts",
-              "output": "."
+              "output": ".",
+              "ignore": [
+                "**/__fixtures__/**",
+                "**/__fixtures__/**/.*"
+              ]
             }
           ]
         }

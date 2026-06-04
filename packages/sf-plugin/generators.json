@@ -4,6 +4,11 @@
       "factory": "./dist/generators/marker/marker",
       "schema": "./dist/generators/marker/schema.json",
       "description": "Creates a marker file (smoke test for sf-plugin)"
+    },
+    "webapp": {
+      "factory": "./dist/generators/webapp/webapp",
+      "schema": "./dist/generators/webapp/schema.json",
+      "description": "Generate a Next.js webapp integrated with @fabio.caffarello/react-design-system"
     }
   }
 }

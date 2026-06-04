@@ -1,0 +1,24 @@
+// app/providers.tsx
+//
+// Existe separado do layout.tsx por uma razão ESTRUTURAL, não estilística:
+// providers React (Context-based) são client components, mas o RootLayout
+// do App Router é server component por default. Server components não
+// podem renderizar Context Providers diretamente — daí a fronteira.
+//
+// NÃO mover este AppProvider para dentro do layout.tsx "para simplificar".
+// Mover quebra a fronteira client/server e o Next falha no build com
+// "createContext only works in Client Components".
+//
+// Também: o RDS exige que providers venham SEMPRE do entry único
+// (`@fabio.caffarello/react-design-system`), nunca de subpaths
+// (`/providers/AppProvider`). Razão documentada no README do RDS:
+// Turbopack code-splita providers importados de subpaths em chunks
+// separados e a ordem de inicialização quebra em runtime.
+"use client";
+
+import { AppProvider } from "@fabio.caffarello/react-design-system";
+import type { ReactNode } from "react";
+
+export function Providers({ children }: { children: ReactNode }) {
+  return <AppProvider>{children}</AppProvider>;
+}

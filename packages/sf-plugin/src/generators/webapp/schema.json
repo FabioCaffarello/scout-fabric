@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "Webapp",
+  "title": "Webapp generator",
+  "description": "Generate a Next.js webapp integrated with @fabio.caffarello/react-design-system. See docs/design/webapp-generator.md for the full design.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Webapp name (kebab-case, starts with a lowercase letter). Becomes the project's package.json#name and the directory leaf.",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "$default": {
+        "$source": "argv",
+        "index": 0
+      },
+      "x-prompt": "Webapp name?"
+    },
+    "directory": {
+      "type": "string",
+      "description": "Workspace-relative directory where the webapp will be created (e.g. apps/<name>).",
+      "x-prompt": "Directory for the webapp?"
+    }
+  },
+  "required": ["name", "directory"],
+  "additionalProperties": false
+}

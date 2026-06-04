@@ -1,0 +1,16 @@
+import { Button } from "@fabio.caffarello/react-design-system";
+
+export default function Home() {
+  return (
+    <main className="flex min-h-screen items-center justify-center p-8">
+      <div className="flex flex-col items-center gap-6 text-center">
+        <h1 className="text-3xl font-semibold"><%= name %></h1>
+        <p className="text-fg-secondary max-w-md">
+          Webapp gerado por <code>@fabio.caffarello/sf-plugin:webapp</code>.
+          O botão abaixo vem do <code>react-design-system</code>.
+        </p>
+        <Button variant="primary">Hello, RDS</Button>
+      </div>
+    </main>
+  );
+}
