@@ -130,10 +130,11 @@ no mesmo commit — ou a estratégia migra para derivação. O `lint` do
 `@nx/nx-plugin-checks` não pega divergência; só o spec (asserções
 separadas por regra, ver §3.c) pega.
 
-### d) Templates EJS (`files/`) opcionais
+### d) Templates EJS (`files/`) só quando a peça correspondente chegar
 
-O generator gera `files/src/index.ts.template` como exemplo. Se a peça
-de scaffold não usa templates, **deletar `files/`**. Adicionar
+O generator gera `files/src/index.ts.template` como exemplo. Se a
+peça atual ainda não usa templates (ex.: peça de scaffold/schema
+sem comportamento de geração), **deletar `files/`**. Adicionar
 depois, quando a peça que usa templates chegar.
 
 ---
@@ -172,7 +173,40 @@ await expect(
 await expect(generator(tree, { directory: 'apps/x' })).rejects.toThrow();
 ```
 
-### c) Cobertura mínima do schema
+### c) Test helpers não podem vazar no tarball
+
+Generators que precisam de helpers de teste não-triviais (ex.: carregar
+uma fixture na Tree) caem numa pegadinha: o helper, se vive dentro de
+`src/` (qualquer subdiretório, inclusive `__internal__/`,
+`_testing/`), é compilado pelo `@nx/js:tsc` e **publicado no tarball**
+do pacote. Consumidores externos recebem código de scaffolding de
+teste que para eles é lixo.
+
+Três soluções, em ordem de simplicidade:
+
+**1. Inline no spec** (recomendado para helpers de até ~30 linhas):
+manter a função no próprio `*.spec.ts`, fora de import externo.
+Custo: duplicação se o segundo generator precisar do mesmo helper —
+mas até lá, é mais barato.
+
+**2. Mover para `tests/`** (fora do `src/`): o `vitest.config.mts`
+já inclui `{src,tests}/**/*.spec.ts`, e o `tsconfig.lib.json` tem
+`rootDir: "src"`, então `tests/` fica fora do build. O custo é o
+caminho relativo feio (`../../../../tests/helper`).
+
+**3. Promover para subpath exportado** (`@fabio.caffarello/sf-plugin/testing`):
+caminho que `@nx/devkit/testing` segue. Justificável quando há mais
+de um generator precisando, **e** o helper é estável o suficiente
+para virar contrato. Não force antes disso — é nova superfície
+pública a manter.
+
+**Caso real (Peça 3 do `webapp`):** o helper `applyFixture` foi
+extraído para `src/generators/webapp/__internal__/apply-fixture.ts`
+e o `pnpm pack --dry-run` revelou `dist/.../apply-fixture.{js,d.ts}`
+no tarball. Inlinado de volta no spec — primeiro caso, surface
+mínima.
+
+### d) Cobertura mínima do schema
 
 Para cada generator de produto, o spec deve provar **separadamente**:
 

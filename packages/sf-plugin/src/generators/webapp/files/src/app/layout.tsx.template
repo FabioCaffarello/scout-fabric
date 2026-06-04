@@ -1,0 +1,33 @@
+// IMPORTANT: order of these imports matters.
+// The RDS CSS bundle ships Tailwind v4 + RDS tokens; ./globals.css
+// adds the Tailwind setup local to this project. RDS first means
+// project-level utility classes win on cascade conflicts. See
+// docs/design/webapp-generator.md §9.1.
+import "@fabio.caffarello/react-design-system/styles";
+import "./globals.css";
+
+import type { Metadata } from "next";
+import { Providers } from "./providers";
+
+export const metadata: Metadata = {
+  title: "<%= name %>",
+  description: "Webapp gerado por @fabio.caffarello/sf-plugin:webapp",
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
+  return (
+    <html lang="en">
+      {/*
+        bg-surface-canvas + text-fg-primary são classes semânticas do RDS.
+        O <body> precisa delas para o surface seguir o tema ativo
+        (light/dark/variante). Requisito documentado no README do RDS
+        (linha 30).
+      */}
+      <body className="bg-surface-canvas text-fg-primary">
+        <Providers>{children}</Providers>
+      </body>
+    </html>
+  );
+}
