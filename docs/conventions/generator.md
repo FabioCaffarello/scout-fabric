@@ -255,10 +255,10 @@ diferentes mente sobre o input do harness. Em particular, capturar
 **sem `--skip-install` equivalente** enche a fixture de `node_modules/`
 inúteis (~MB de bytes vs ~KB do contrato).
 
-### c) Excluir das ferramentas do workspace — três camadas
+### c) Excluir das ferramentas do workspace — cinco camadas
 
-A fixture é dado, não código. Três configurações precisam refletir
-isso, e cada uma protege contra um tipo de vazamento:
+A fixture é dado, não código. Cinco configurações precisam refletir
+isso, e cada uma protege contra um tipo de vazamento distinto:
 
 **1. `tsconfig.lib.json#exclude`** — adicionar `"src/**/__fixtures__/**"`.
 Sem isso, `tsc --build` tenta typecheckar `.ts`/`.d.ts` da fixture
@@ -281,6 +281,26 @@ um projeto a mais, `nx run-many` tenta rodar targets contra ele, e
 quebra com erro sem contexto claro. Caso real: o `cna-run-2` da
 fixture do `webapp` apareceu como 4º projeto até o `.nxignore` ser
 criado.
+
+**4. `.gitignore` raiz com `!**/**fixtures**/**`** — anula regras de
+`.gitignore` aninhadas dentro da fixture. A fixture do `create-next-app`
+**traz seu próprio `.gitignore`** (do template Next), e esse arquivo
+lista `next-env.d.ts` e `*.tsbuildinfo` como ignorados — mas para a
+fábrica esses arquivos **são o dado de teste que queremos versionar**.
+Sem a regra de unignore no `.gitignore` raiz, o `git add` silenciosamente
+pula esses arquivos e nem avisa. Caso real: `next-env.d.ts` da fixture
+do `webapp` foi commitado localmente como "sucesso", o CI no runner
+limpo falhou com `ENOENT` ao tentar ler o arquivo via `fs.readFileSync`
+no spec.
+
+**5. `.prettierignore` com `**/**fixtures**/**`** — Prettier por default
+tenta formatar todo arquivo do workspace, e a fixture tem `.tsx`/`.css`
+que Prettier considera "passível de melhoria". Reformatar a fixture é
+**mentir sobre o que o upstream produziu** — o ponto inteiro de ter
+fixture é provar contra fato. Sem essa entrada, `pnpm format:check`
+falha mesmo com a fixture corretamente versionada. Caso real:
+`next-env.d.ts` e `globals.css` da fixture do `webapp` causaram
+`format:check` fail no CI até a entrada ser adicionada.
 
 **Cinto de segurança no `.gitignore` do workspace** — adicionar
 `**/.next/`. O CNA com `--skip-install` não gera `.next/`, mas se

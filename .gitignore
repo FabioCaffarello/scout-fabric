@@ -53,3 +53,10 @@ vitest.config.*.timestamp*
 # então nem node_modules/ nem .next/ deveriam existir nela. Mas se alguém regenerar
 # a fixture sem essas flags, esses diretórios não vão para o repositório.
 **/.next/
+
+# A fixture do create-next-app traz seu próprio .gitignore (do template Next).
+# Esse .gitignore lista next-env.d.ts e *.tsbuildinfo — mas para nós, esses
+# arquivos SÃO o dado de teste que queremos versionar. Anulamos as regras
+# dentro de __fixtures__/ para que o git rastreie TUDO que a captura
+# produziu, não o que o upstream considera "gerado".
+!**/__fixtures__/**
