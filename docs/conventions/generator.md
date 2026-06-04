@@ -344,7 +344,160 @@ Next gera código com convenções diferentes).
 
 ---
 
-## 6) O que NÃO entra aqui
+## 6) Generators que delegam a ferramentas externas
+
+Generators de produto frequentemente **delegam o boilerplate a uma
+ferramenta externa** (`create-next-app`, `npm create vite`,
+`create-t3-app`, etc.) e aplicam um harness por cima. O `webapp` do
+`sf-plugin` é o primeiro caso da fábrica; o padrão descrito aqui é o
+que o **scout** vai reusar quando o `materialize` invocar generators
+que tocam o mundo externo.
+
+### a) Contrato em cinco itens
+
+Generators que rodam processo externo devem expor:
+
+1. **Versão pinada como constante pública exportada** (`CNA_VERSION = '16.2.7' as const`).
+   Bumpar = mudança da fábrica. Spec faz snapshot que falha em drift.
+
+2. **Argv da ferramenta como tuple readonly pública exportada**
+   (`CNA_FLAGS = [...] as const`). Ordem importa e é parte do contrato.
+   Spec faz snapshot do array completo (rede ampla) + asserções
+   semânticas item-por-item nas flags cuja ausência causa um defeito
+   conhecido (proteção contra `vitest -u` cego — ver §6.c).
+
+3. **Interface `Deps` com a função que executa o subprocess** —
+   `{ runCreateNextApp(target): Promise<void> }`. Testabilidade
+   declarada na assinatura do generator, não escondida no spec.
+
+4. **Default exportado para produção** (`defaultRunCreateNextApp`)
+   — implementa o spawn real via `child_process.spawn` + `pnpm dlx`
+   com a versão pinada e flags. **Esta função é a única não
+   Tree-testável** do generator; sua prova vive no smoke real
+   (§10.2 do doc de design da feature).
+
+5. **Parâmetro `deps` opcional com default de produção** na
+   assinatura: `webappGenerator(tree, options, deps = defaultDeps)`.
+   Nx CLI chama sem deps (production); testes chamam com stub.
+
+**O generator NUNCA chama `child_process.spawn` (ou equivalente)
+direto.** Isso quebra a testabilidade declarada e oculta a dependência
+externa do contrato. Se houver `child_process` no `*.ts` do generator
+fora de `defaultRun<X>`, é bug de arquitetura.
+
+### b) Por que injeção por parâmetro, não `vi.mock`
+
+`vi.mock`/`jest.mock` funcionam, mas escondem a testabilidade no
+framework de teste. A injeção por parâmetro:
+
+- Torna a testabilidade **parte do contrato visível** na assinatura —
+  qualquer um lendo a função vê o que é injetável sem ler o spec.
+- Funciona fora do Vitest (futuro: testes de integração, composição
+  com outros generators, harness genérico).
+- É dependency injection clássica — pattern estável que sobrevive a
+  mudanças de framework.
+
+A diferença é princípio, não preferência: testabilidade declarada
+
+> testabilidade truque-de-framework.
+
+### c) Snapshot do argv + asserções semânticas — proteção em dupla camada
+
+```ts
+// Snapshot — rede ampla (pega adição, remoção, reordenação)
+it('matches the §3 contract argv exactly', () => {
+  expect(CNA_FLAGS).toEqual(['--ts', '--tailwind' /* ... */, , '--skip-install', '--disable-git']);
+});
+
+// Âncoras semânticas — protegem contra `vitest -u` cego
+it('includes --skip-install — without it, pnpm install runs before the harness adds RDS deps', () => {
+  expect(CNA_FLAGS).toContain('--skip-install');
+});
+```
+
+O snapshot quebra em qualquer drift; quem atualiza cegamente (`vitest -u`)
+não pensa no que mudou. As asserções semânticas adicionam por que
+aquela flag importa — quem quiser remover precisa entender o defeito
+que vai voltar. Não é redundância; é a explicação ancorada como teste.
+
+**Regra prática:** uma asserção semântica por flag cuja ausência causa
+um defeito observável (não cabe asserir cada flag — o snapshot já cobre
+a forma; semânticas só para o que tem consequência conhecida).
+
+### d) Costura Tree ↔ disco — característica da delegação
+
+A ferramenta externa (CNA, etc.) escreve em **disco real** (no
+`workspaceRoot/<options.directory>`). O harness opera na **Tree
+virtual** do Nx. A composição funciona porque:
+
+- `tree.read(path)` faz **fallback automático para o disco** quando a
+  Tree não tem o arquivo registrado — pattern documentado do
+  `@nx/devkit`.
+- `tree.write(path, content)` registra na Tree (não toca disco).
+- `tree.flush()` no fim do generator escreve **só as modificações da
+  Tree** por cima do disco — não deleta arquivos não-tocados.
+
+Sequência em produção:
+
+1. `deps.runCreateNextApp(target)` — subprocess escreve ~20 arquivos
+   em disco.
+2. `generateFiles` registra sobrescritas + criação na Tree.
+3. `updateJson(tree, "<dir>/package.json", ...)` — `tree.read` lê do
+   disco (CNA escreveu lá), aplica callback, registra modificação na
+   Tree.
+4. Nx flush — modificações da Tree caem em cima do que o CNA deixou.
+
+**Consequência importante:** os arquivos que o CNA escreve **não
+aparecem em `tree.listChanges()`** — só as modificações do harness
+aparecem. Para `nx generate --dry-run`, isso significa que o output
+mostra só os 6 arquivos do harness, **não os ~20 do CNA**.
+
+Para um generator que delega, isso é aceitável (ninguém roda dry-run
+de um generator que invoca CNA real — o CNA rodaria mesmo em dry-run,
+sem ganho). Mas é uma **quebra sutil do modelo mental do Nx** que
+quem orquestra esses generators precisa saber:
+
+- **Para o scout/`materialize`**: ao invocar generators que delegam,
+  **não confiar em `tree.listChanges()`** para saber tudo que foi
+  gerado. A delegação a disco é invisível à Tree. O `materialize`
+  precisa de outra fonte de verdade (ex.: o doc de design lista os
+  arquivos esperados, ou um smoke pós-geração verifica
+  fisicamente).
+
+Caso real: `webapp` Peça 4. O CNA produz 18 arquivos; o harness toca 6. `tree.listChanges()` reporta os 6, não os 18.
+
+### e) Validação rodando no Nx — não testada no Tree
+
+Quando o Nx CLI invoca o generator via `nx g sf-plugin:<name> ...`,
+ele valida `options` contra o `schema.json` **antes** de chamar o
+generator function. Mas como vimos em §2.c, chamadas via API direta
+bypassam essa validação.
+
+Para generators que delegam, isso vira ainda mais importante: se a
+validação não rodasse antes do `deps.runCreateNextApp`, um input
+inválido **dispararia o subprocess** (lento, com efeito em disco)
+antes de descobrir o erro. **O spec deve provar explicitamente que
+`validateOptions` roda antes de qualquer chamada a `deps`:**
+
+```ts
+it('throws when input misses a required field — runs BEFORE any subprocess', async () => {
+  const runCreateNextApp = vi.fn(async () => {
+    throw new Error('runCreateNextApp must not be called when validation fails');
+  });
+  await expect(
+    // @ts-expect-error: testing the runtime guard
+    webappGenerator(tree, { directory: 'apps/x' }, { runCreateNextApp }),
+  ).rejects.toThrow(/`name` is required/);
+  expect(runCreateNextApp).not.toHaveBeenCalled();
+});
+```
+
+A asserção `runCreateNextApp.not.toHaveBeenCalled()` é a prova material
+da ordem.
+
+---
+
+## 7) O que NÃO entra aqui
 
 - **O quê** o generator faz — vive no doc de design correspondente em
   `docs/design/<generator>.md`.
