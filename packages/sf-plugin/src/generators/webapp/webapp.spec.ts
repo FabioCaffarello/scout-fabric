@@ -3,7 +3,14 @@ import { createTreeWithEmptyWorkspace } from '@nx/devkit/testing';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-import { validateOptions, webappGenerator } from './webapp';
+import {
+  CNA_FLAGS,
+  CNA_VERSION,
+  defaultRunCreateNextApp,
+  validateOptions,
+  webappGenerator,
+  type WebappDeps,
+} from './webapp';
 
 const FIXTURE = 'cna-16.2.7';
 const FIXTURE_ROOT = path.join(__dirname, '__fixtures__', FIXTURE);
@@ -38,6 +45,18 @@ function walk(root: string, dir: string, cb: (absolutePath: string) => void): vo
   }
 }
 
+/**
+ * Test stub for `runCreateNextApp`: replays the captured fixture into
+ * the Tree at the target dir, simulating what the real CNA would do
+ * by writing to disk in production. Used as the `deps.runCreateNextApp`
+ * injection in the harness tests below.
+ */
+function fixtureBackedRunCna(tree: Tree, targetDir: string): WebappDeps['runCreateNextApp'] {
+  return async () => {
+    applyFixture(tree, FIXTURE_ROOT, targetDir);
+  };
+}
+
 describe('sf-plugin:webapp — schema validation (Peça 1)', () => {
   let tree: Tree;
 
@@ -68,17 +87,157 @@ describe('sf-plugin:webapp — schema validation (Peça 1)', () => {
   });
 
   describe('webappGenerator (entry point delegates to validateOptions)', () => {
-    it('throws when input misses a required field', async () => {
-      // @ts-expect-error: testing the runtime guard with an intentionally incomplete options object
-      await expect(webappGenerator(tree, { directory: 'apps/hello-rds' })).rejects.toThrow(
-        /`name` is required/,
-      );
+    it('throws when input misses a required field — runs BEFORE any subprocess', async () => {
+      const runCreateNextApp = vi.fn(async () => {
+        throw new Error('runCreateNextApp must not be called when validation fails');
+      });
+      await expect(
+        // @ts-expect-error: testing the runtime guard with an intentionally incomplete options object
+        webappGenerator(tree, { directory: 'apps/hello-rds' }, { runCreateNextApp }),
+      ).rejects.toThrow(/`name` is required/);
+      expect(runCreateNextApp).not.toHaveBeenCalled();
     });
 
-    it('throws when input violates the name pattern', async () => {
+    it('throws when input violates the name pattern — runs BEFORE any subprocess', async () => {
+      const runCreateNextApp = vi.fn(async () => {
+        throw new Error('runCreateNextApp must not be called when validation fails');
+      });
       await expect(
-        webappGenerator(tree, { name: 'PascalCase', directory: 'apps/x' }),
+        webappGenerator(tree, { name: 'PascalCase', directory: 'apps/x' }, { runCreateNextApp }),
       ).rejects.toThrow(/kebab-case/);
+      expect(runCreateNextApp).not.toHaveBeenCalled();
+    });
+  });
+});
+
+describe('sf-plugin:webapp — CNA delegation contract (Peça 4)', () => {
+  describe('CNA_VERSION', () => {
+    it('pins the exact create-next-app version — bump is a fábrica-level change (§2)', () => {
+      expect(CNA_VERSION).toBe('16.2.7');
+      // No `^`, no `~`, no `latest` — determinism depends on the exact pin.
+      expect(CNA_VERSION).not.toMatch(/[\^~]/);
+    });
+  });
+
+  describe('CNA_FLAGS', () => {
+    it('matches the §3 contract argv exactly — snapshot guard', () => {
+      // Reordering, adding, or removing any element breaks this snapshot.
+      // The snapshot is the wide net; the semantic asserts below are the
+      // anchors that prevent it from being updated cegamente.
+      expect(CNA_FLAGS).toEqual([
+        '--ts',
+        '--tailwind',
+        '--eslint',
+        '--app',
+        '--src-dir',
+        '--no-react-compiler',
+        '--no-agents-md',
+        '--import-alias',
+        '@/*',
+        '--use-pnpm',
+        '--skip-install',
+        '--disable-git',
+      ]);
+    });
+
+    it('includes --skip-install — without it, pnpm install runs before the harness adds RDS deps', () => {
+      // The harness injects @fabio.caffarello/react-design-system + peers
+      // + sf-eslint-config into package.json AFTER the CNA runs. If
+      // --skip-install were absent, the CNA would install Next-only deps,
+      // and the consumer would have to install again after the harness —
+      // the first install would be wasted work.
+      expect(CNA_FLAGS).toContain('--skip-install');
+    });
+
+    it('includes --no-agents-md — without it, CNA writes the generic Next AGENTS.md/CLAUDE.md', () => {
+      // The CNA default (16.2.7) generates AGENTS.md with the text
+      // "This is NOT the Next.js you know" and a CLAUDE.md that just
+      // imports it. The scout's webapp is a curated context; these
+      // generic files mislead more than help.
+      expect(CNA_FLAGS).toContain('--no-agents-md');
+    });
+
+    it('includes --disable-git — without it, CNA initializes a separate git repo inside the workspace', () => {
+      // The webapp is composed by the scout, which initializes (or
+      // doesn't) the git story itself. CNA's `git init` would create
+      // a nested repo and confuse downstream tools.
+      expect(CNA_FLAGS).toContain('--disable-git');
+    });
+
+    it('includes the --import-alias pair (flag + value) at consecutive positions', () => {
+      const flagIdx = CNA_FLAGS.indexOf('--import-alias');
+      expect(flagIdx).toBeGreaterThanOrEqual(0);
+      expect(CNA_FLAGS[flagIdx + 1]).toBe('@/*');
+    });
+  });
+
+  describe('defaultRunCreateNextApp', () => {
+    it('is exported as the production default for the deps contract', () => {
+      // Implementation (spawn pnpm dlx create-next-app@16.2.7 ...) is
+      // proved by the Peça 5 smoke (tools/smoke-webapp.sh), not by
+      // Tree-test — spawning the real CNA in unit tests would be slow
+      // and require network access. The smoke also confirms the
+      // `pnpm dlx` cache resolves to the EXACT pinned version.
+      expect(typeof defaultRunCreateNextApp).toBe('function');
+    });
+  });
+
+  describe('composition: delegation BEFORE harness', () => {
+    let tree: Tree;
+    beforeEach(() => {
+      tree = createTreeWithEmptyWorkspace();
+    });
+
+    it('calls runCreateNextApp once with an absolute path that ends in options.directory', async () => {
+      const targetsReceived: string[] = [];
+      await webappGenerator(
+        tree,
+        { name: NAME, directory: TARGET },
+        {
+          runCreateNextApp: async (target) => {
+            targetsReceived.push(target);
+            applyFixture(tree, FIXTURE_ROOT, TARGET);
+          },
+        },
+      );
+      expect(targetsReceived).toHaveLength(1);
+      const received = targetsReceived[0];
+      if (received === undefined) {
+        throw new Error('runCreateNextApp was not called with a target');
+      }
+      expect(path.isAbsolute(received)).toBe(true);
+      // workspaceRoot/<TARGET> — the trailing segment is exactly options.directory.
+      expect(received.endsWith(path.sep + TARGET.split('/').join(path.sep))).toBe(true);
+    });
+
+    it('runs runCreateNextApp BEFORE the harness writes anything to the Tree', async () => {
+      const order: string[] = [];
+
+      await webappGenerator(
+        tree,
+        { name: NAME, directory: TARGET },
+        {
+          runCreateNextApp: async () => {
+            // Snapshot of the Tree at the moment delegation runs: empty.
+            // If the harness ran first, providers.tsx (created file) or
+            // a modified package.json/layout.tsx would already exist.
+            expect(tree.exists(`${TARGET}/src/app/providers.tsx`)).toBe(false);
+            expect(tree.exists(`${TARGET}/src/app/layout.tsx`)).toBe(false);
+            expect(tree.exists(`${TARGET}/package.json`)).toBe(false);
+            order.push('cna');
+            applyFixture(tree, FIXTURE_ROOT, TARGET);
+          },
+        },
+      );
+
+      // After the generator: harness ran (proof = providers.tsx exists,
+      // RDS in package.json, Geist stripped from layout.tsx).
+      order.push('harness');
+      expect(order).toEqual(['cna', 'harness']);
+      expect(tree.exists(`${TARGET}/src/app/providers.tsx`)).toBe(true);
+      const layout = tree.read(`${TARGET}/src/app/layout.tsx`, 'utf-8') ?? '';
+      expect(layout).toContain('@fabio.caffarello/react-design-system/styles');
+      expect(layout).not.toContain('Geist_Mono');
     });
   });
 });
@@ -88,8 +247,11 @@ describe('sf-plugin:webapp — harness against captured CNA fixture (Peça 3)', 
 
   beforeEach(async () => {
     tree = createTreeWithEmptyWorkspace();
-    applyFixture(tree, FIXTURE_ROOT, TARGET);
-    await webappGenerator(tree, { name: NAME, directory: TARGET });
+    await webappGenerator(
+      tree,
+      { name: NAME, directory: TARGET },
+      { runCreateNextApp: fixtureBackedRunCna(tree, TARGET) },
+    );
   });
 
   describe('src/app/layout.tsx — overwritten (§9.5)', () => {
@@ -214,6 +376,25 @@ describe('sf-plugin:webapp — harness against captured CNA fixture (Peça 3)', 
     it('discards the Vercel-marketing boilerplate from the CNA template', () => {
       expect(page).not.toContain('vercel.com/templates');
       expect(page).not.toContain('next.svg');
+    });
+
+    it('declares "use client" (RDS components use Context, must live in client tree)', () => {
+      // Caught by Peça 5 smoke: next build prerender failed with
+      // "createContext is not a function" until page.tsx became a client
+      // component. RDS components (Button, etc.) internally use React
+      // Context; Next 16 + Turbopack cannot evaluate them in a server
+      // tree. Documented in the template comment.
+      const firstMeaningful = page
+        .split('\n')
+        .map((line) => line.trim())
+        .find(
+          (line) =>
+            line.length > 0 &&
+            !line.startsWith('//') &&
+            !line.startsWith('/*') &&
+            !line.startsWith('*'),
+        );
+      expect(firstMeaningful).toBe('"use client";');
     });
   });
 
