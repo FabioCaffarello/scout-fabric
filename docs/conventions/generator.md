@@ -200,7 +200,97 @@ revisar `generators.json` (factory + schema paths apontam para
 
 ---
 
-## 5) O que NÃO entra aqui
+## 5) Fixtures como dado de teste
+
+Generators que delegam a ferramentas externas (CNA, etc.) testam o
+harness contra a **saída real congelada** dessa ferramenta — não
+contra mocks inventados. A fixture vive em
+`packages/sf-plugin/src/generators/<name>/__fixtures__/<tool>-<version>/`.
+
+### a) Versão no nome do diretório
+
+O sufixo de versão (ex.: `cna-16.2.7/`) é obrigatório. Quando bumpar
+a versão da ferramenta delegada, a nova fixture coexiste com a antiga
+sem sobrescrever — e o nome diz qual versão capturou.
+
+### b) Captura sob o contrato exato
+
+A fixture é a saída da ferramenta delegada **com as flags exatas do
+contrato** (ver doc de design da feature). Capturar com flags
+diferentes mente sobre o input do harness. Em particular, capturar
+**sem `--skip-install` equivalente** enche a fixture de `node_modules/`
+inúteis (~MB de bytes vs ~KB do contrato).
+
+### c) Excluir das ferramentas do workspace — três camadas
+
+A fixture é dado, não código. Três configurações precisam refletir
+isso, e cada uma protege contra um tipo de vazamento:
+
+**1. `tsconfig.lib.json#exclude`** — adicionar `"src/**/__fixtures__/**"`.
+Sem isso, `tsc --build` tenta typecheckar `.ts`/`.d.ts` da fixture
+contra deps que o pacote não tem (`next`, etc.) e quebra com TS2307.
+
+**2. `package.json#nx.targets.build.options.assets`** — adicionar
+`"ignore": ["**/__fixtures__/**", "**/__fixtures__/**/.*"]` em cada
+asset. Sem isso, o `@nx/js:tsc` copia arquivos da fixture para
+`dist/`. **Atrito conhecido**: o `ignore` do `@nx/js:tsc` é
+inconsistente com dotfiles — o pattern principal (`**/!(*.ts)`)
+matcha dotfiles, mas o `ignore: ["**/__fixtures__/**"]` sozinho
+**não** os ignora. O pattern extra `**/__fixtures__/**/.*` cobre o
+gap. (Caso real: `.gitignore` da fixture do `webapp` vazou para o
+dist sem esse pattern.)
+
+**3. `.nxignore`** — adicionar `**/__fixtures__/` na raiz do workspace.
+Sem isso, o Nx 22 **infere a fixture como um projeto** (detecta o
+`package.json`/`tsconfig.json` dentro dela). `nx show projects` lista
+um projeto a mais, `nx run-many` tenta rodar targets contra ele, e
+quebra com erro sem contexto claro. Caso real: o `cna-run-2` da
+fixture do `webapp` apareceu como 4º projeto até o `.nxignore` ser
+criado.
+
+**Cinto de segurança no `.gitignore` do workspace** — adicionar
+`**/.next/`. O CNA com `--skip-install` não gera `.next/`, mas se
+alguém regenerar a fixture sem essa flag, o `.next/` (centenas de
+MB) não vai para o repo.
+
+### d) Validar — `pnpm pack` E inspeção do `dist/` direto
+
+A prova definitiva tem **dois passos** que não se substituem:
+
+**1. `pnpm --filter @fabio.caffarello/sf-plugin pack --dry-run`** — ler
+a lista de "Tarball Contents". Deve conter apenas artefatos canônicos
+(`dist/`, `README.md`, `package.json`, `generators.json`). Se aparecer
+qualquer arquivo da fixture, alguma das três camadas acima falhou.
+
+**2. `find packages/sf-plugin/dist -type f`** — inspeção direta da
+saída do build. Necessário porque o `pnpm pack` segue a convenção npm
+que **automaticamente exclui dotfiles** do tarball (`.gitignore`,
+`.dotenv`, etc.), e isso **mascara vazamento de dotfiles no `dist/`**.
+Caso real: o `.gitignore` da fixture vazou para o `dist/` com o
+`ignore` do `@nx/js:tsc` sem o pattern extra para dotfiles
+(`**/__fixtures__/**/.*`), mas o `pnpm pack --dry-run` listou o
+tarball como limpo. **`pnpm pack` sozinho é falso-verde para dotfiles.**
+
+Em conjunto: o `pnpm pack` valida o que o consumidor recebe; o
+`find dist/` valida o estado do build no disco. Os dois precisam
+estar limpos para a fixture estar honestamente excluída.
+
+Este é o terceiro caso do padrão recorrente da fábrica: há uma camada
+onde o caminho rápido de validação esconde um problema que só a
+verificação completa expõe (cf. §3.a TS6307 do package.md, §3.a desta
+convenção sobre `nx reset && typecheck` vs vitest). O catálogo dessas
+armadilhas é parte do que esta convenção existe para preservar.
+
+### e) Eslint ignores do pacote
+
+O `eslint.config.mjs` do pacote precisa ignorar `**/__fixtures__/**`
+junto com `**/out-tsc`. Sem isso, o lint do pacote tenta linta os
+arquivos da fixture contra as regras da fábrica (incompatíveis — o
+Next gera código com convenções diferentes).
+
+---
+
+## 6) O que NÃO entra aqui
 
 - **O quê** o generator faz — vive no doc de design correspondente em
   `docs/design/<generator>.md`.

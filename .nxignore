@@ -1,0 +1,15 @@
+# Paths the Nx workspace scanner must ignore.
+#
+# Same syntax as .gitignore. The Nx 22 inference plugins (@nx/js/typescript,
+# @nx/vite/plugin, @nx/eslint/plugin) walk the workspace looking for
+# project markers (package.json, tsconfig.json, project.json, etc.). Any
+# match becomes a project — even inside source trees where we just want
+# to store data.
+#
+# Generator fixtures are real package layouts (captured from real tools
+# like create-next-app) used as Tree-test inputs. They MUST NOT be
+# inferred as Nx projects: they have their own tsconfig, package.json,
+# and lint configs that conflict with the workspace's, and running any
+# target against them is meaningless. Ignoring them here is what keeps
+# `nx run-many` honest about how many projects we actually have.
+**/__fixtures__/
