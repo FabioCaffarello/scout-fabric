@@ -19,13 +19,11 @@
 // `dist/index.js` via `exports.default`. The `lint` target therefore has
 // `dependsOn: ['sf-eslint-config:build']` in `nx.json` so the dist is
 // fresh before any lint runs.
-
 import sf from '@fabio.caffarello/sf-eslint-config';
 import tseslint from 'typescript-eslint';
 
 export default [
   ...sf,
-
   // Workspace-specific: typed-aware rules.
   {
     files: ['**/*.{ts,tsx}'],
@@ -41,7 +39,6 @@ export default [
       '@typescript-eslint/no-misused-promises': 'error',
     },
   },
-
   // Workspace-specific: enforce-module-boundaries with the depConstraints
   // of THIS workspace. Generated projects will declare their own.
   {
@@ -60,6 +57,14 @@ export default [
           depConstraints: [{ sourceTag: '*', onlyDependOnLibsWithTags: ['*'] }],
         },
       ],
+    },
+  },
+  {
+    files: ['**/*.json'],
+    // Override or add rules here
+    rules: {},
+    languageOptions: {
+      parser: await import('jsonc-eslint-parser'),
     },
   },
 ];

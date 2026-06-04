@@ -8,6 +8,9 @@
     },
     {
       "path": "./packages/sf-eslint-config"
+    },
+    {
+      "path": "./packages/sf-plugin"
     }
   ]
 }
