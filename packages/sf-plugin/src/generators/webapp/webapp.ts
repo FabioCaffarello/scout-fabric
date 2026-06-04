@@ -1,5 +1,6 @@
 import { generateFiles, Tree, updateJson, workspaceRoot } from '@nx/devkit';
 import { spawn } from 'node:child_process';
+import { mkdir } from 'node:fs/promises';
 import * as path from 'node:path';
 
 import { WebappGeneratorSchema } from './schema';
@@ -81,7 +82,16 @@ export interface WebappDeps {
  * convention is `pnpm exec` everywhere). `pnpm dlx` honors the exact
  * `@${CNA_VERSION}` pin — the smoke test confirms.
  */
-export const defaultRunCreateNextApp: WebappDeps['runCreateNextApp'] = (target) => {
+export const defaultRunCreateNextApp: WebappDeps['runCreateNextApp'] = async (target) => {
+  // create-next-app requires the PARENT directory of `target` to exist.
+  // When `options.directory` is `apps/hello-rds` in a fresh workspace,
+  // `apps/` does not exist yet, and CNA fails with "The application path
+  // is not writable" (an unhelpful surface error for a missing parent).
+  // Encapsulating the parent-mkdir here keeps the generator function
+  // clean and puts the knowledge of CNA's requirement where the CNA is
+  // actually invoked. Caught by the Peça 5 smoke run, not by the Tree-test.
+  await mkdir(path.dirname(target), { recursive: true });
+
   return new Promise<void>((resolve, reject) => {
     const child = spawn('pnpm', ['dlx', `create-next-app@${CNA_VERSION}`, target, ...CNA_FLAGS], {
       stdio: 'inherit',

@@ -7,27 +7,28 @@ conteúdo aqui — este arquivo só descreve o que muda comportamento.
 
 ## Comandos que funcionam hoje
 
-| Comando                                                          | O que faz                                                                                                             |
-| ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `pnpm install`                                                   | Restaura deps e instala/atualiza hooks (`prepare`).                                                                   |
-| `pnpm lint`                                                      | `nx run-many -t lint` em todos os projetos.                                                                           |
-| `pnpm typecheck`                                                 | `nx run-many -t typecheck` em todos os projetos.                                                                      |
-| `pnpm test`                                                      | `nx run-many -t test`. Vitest com `@nx/vite/plugin`.                                                                  |
-| `pnpm test:watch`                                                | `nx run-many -t test --watch` — para iteração em um pacote específico, prefira `pnpm exec nx run <pkg>:test --watch`. |
-| `pnpm format:check`                                              | Verifica formatação Prettier do repo.                                                                                 |
-| `pnpm format`                                                    | Aplica Prettier.                                                                                                      |
-| `echo "<msg>" \| pnpm commitlint`                                | Linta uma mensagem via stdin.                                                                                         |
-| `pnpm affected:lint`                                             | Lint só nos projetos afetados desde `main` (mesmo que CI roda em PR).                                                 |
-| `pnpm affected:typecheck`                                        | Typecheck nos afetados.                                                                                               |
-| `pnpm affected:test`                                             | Test nos afetados.                                                                                                    |
-| `pnpm affected:build`                                            | Build nos afetados.                                                                                                   |
-| `pnpm many:lint` / `many:typecheck` / `many:test` / `many:build` | Mesmos targets em **todos** os projetos (o que CI faz em push em main).                                               |
-| `pnpm exec nx affected -t lint --base=<ref>`                     | Para escolher um base ≠ `main`.                                                                                       |
-| `pnpm exec nx show projects`                                     | Lista projetos reconhecidos pelo Nx.                                                                                  |
-| `pnpm graph`                                                     | Abre o grafo (interativo). Use `--file=<path>` para `.json`/`.html`.                                                  |
-| `pnpm exec nx release --dry-run --skip-publish`                  | Preview do bump e changelog. Não toca em git nem npm.                                                                 |
-| `./tools/smoke-publish.sh`                                       | Smoke do ciclo publish→install→use contra Verdaccio local. Provas em `docs/release.md`.                               |
-| `./scripts/apply-branch-protection.sh`                           | Diff entre `governance/branch-protection.main.json` e o estado live (dry-run). `--apply` para PUT.                    |
+| Comando                                                          | O que faz                                                                                                                    |
+| ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm install`                                                   | Restaura deps e instala/atualiza hooks (`prepare`).                                                                          |
+| `pnpm lint`                                                      | `nx run-many -t lint` em todos os projetos.                                                                                  |
+| `pnpm typecheck`                                                 | `nx run-many -t typecheck` em todos os projetos.                                                                             |
+| `pnpm test`                                                      | `nx run-many -t test`. Vitest com `@nx/vite/plugin`.                                                                         |
+| `pnpm test:watch`                                                | `nx run-many -t test --watch` — para iteração em um pacote específico, prefira `pnpm exec nx run <pkg>:test --watch`.        |
+| `pnpm format:check`                                              | Verifica formatação Prettier do repo.                                                                                        |
+| `pnpm format`                                                    | Aplica Prettier.                                                                                                             |
+| `echo "<msg>" \| pnpm commitlint`                                | Linta uma mensagem via stdin.                                                                                                |
+| `pnpm affected:lint`                                             | Lint só nos projetos afetados desde `main` (mesmo que CI roda em PR).                                                        |
+| `pnpm affected:typecheck`                                        | Typecheck nos afetados.                                                                                                      |
+| `pnpm affected:test`                                             | Test nos afetados.                                                                                                           |
+| `pnpm affected:build`                                            | Build nos afetados.                                                                                                          |
+| `pnpm many:lint` / `many:typecheck` / `many:test` / `many:build` | Mesmos targets em **todos** os projetos (o que CI faz em push em main).                                                      |
+| `pnpm exec nx affected -t lint --base=<ref>`                     | Para escolher um base ≠ `main`.                                                                                              |
+| `pnpm exec nx show projects`                                     | Lista projetos reconhecidos pelo Nx.                                                                                         |
+| `pnpm graph`                                                     | Abre o grafo (interativo). Use `--file=<path>` para `.json`/`.html`.                                                         |
+| `pnpm exec nx release --dry-run --skip-publish`                  | Preview do bump e changelog. Não toca em git nem npm.                                                                        |
+| `./tools/smoke-publish.sh`                                       | Smoke do ciclo publish→install→use contra Verdaccio local. Provas em `docs/release.md`.                                      |
+| `./tools/smoke-webapp.sh`                                        | Smoke do ciclo entrada→app: gera webapp real, `next build`, asserta integração RDS. Lento (~1-2 min). Skill `/smoke-webapp`. |
+| `./scripts/apply-branch-protection.sh`                           | Diff entre `governance/branch-protection.main.json` e o estado live (dry-run). `--apply` para PUT.                           |
 
 Use `pnpm exec <bin>`, **nunca** `npx` — workspace é pnpm-puro e `.npmrc`
 carrega chaves pnpm-only.
@@ -85,11 +86,12 @@ generators do plugin Nx forem rodados.
 Cada skill é fina: descreve quando usar e delega para o script. Lógica
 vive no script — quando mudar o procedimento, muda só o script.
 
-| Skill            | Trigger                                                     | Invoca                                                                                              |
-| ---------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `/validate`      | "validar", "rodar os checks", "verify local", "antes do PR" | `pnpm exec nx affected -t lint typecheck test build` (ou `nx run-many` com `--all`)                 |
-| `/smoke-publish` | "smoke test", "provar publish", "validar install"           | `./tools/smoke-publish.sh`                                                                          |
-| `/governance`    | "reaplicar governança", "branch protection", "drift check"  | `./scripts/apply-branch-protection.sh` — dry-run default; `--apply` exige diff prévio + confirmação |
+| Skill            | Trigger                                                             | Invoca                                                                                               |
+| ---------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `/validate`      | "validar", "rodar os checks", "verify local", "antes do PR"         | `pnpm exec nx affected -t lint typecheck test build` (ou `nx run-many` com `--all`)                  |
+| `/smoke-publish` | "smoke test", "provar publish", "validar install"                   | `./tools/smoke-publish.sh`                                                                           |
+| `/smoke-webapp`  | "smoke do webapp", "provar generator de webapp", "antes de release" | `./tools/smoke-webapp.sh` — gera webapp real, `next build`, asserta integração RDS. Lento (~1-2 min) |
+| `/governance`    | "reaplicar governança", "branch protection", "drift check"          | `./scripts/apply-branch-protection.sh` — dry-run default; `--apply` exige diff prévio + confirmação  |
 
 Definições em `.claude/skills/<name>/SKILL.md`.
 

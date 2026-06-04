@@ -377,6 +377,25 @@ describe('sf-plugin:webapp — harness against captured CNA fixture (Peça 3)', 
       expect(page).not.toContain('vercel.com/templates');
       expect(page).not.toContain('next.svg');
     });
+
+    it('declares "use client" (RDS components use Context, must live in client tree)', () => {
+      // Caught by Peça 5 smoke: next build prerender failed with
+      // "createContext is not a function" until page.tsx became a client
+      // component. RDS components (Button, etc.) internally use React
+      // Context; Next 16 + Turbopack cannot evaluate them in a server
+      // tree. Documented in the template comment.
+      const firstMeaningful = page
+        .split('\n')
+        .map((line) => line.trim())
+        .find(
+          (line) =>
+            line.length > 0 &&
+            !line.startsWith('//') &&
+            !line.startsWith('/*') &&
+            !line.startsWith('*'),
+        );
+      expect(firstMeaningful).toBe('"use client";');
+    });
   });
 
   describe('eslint.config.mjs — overwritten (§7)', () => {

@@ -1,3 +1,17 @@
+// "use client" is required here because the page renders a component from
+// the @fabio.caffarello/react-design-system (Button), and the RDS
+// internally uses React Context (via providers + cva). Next 16 + Turbopack
+// tries to prerender server components statically, and any RDS component
+// evaluated in a server context fails with "createContext is not a
+// function" — the RDS components are designed to live inside the client
+// tree. Marking the page client component is the canonical fix for
+// design-system pages.
+//
+// The harness applies this to the generated page.tsx; it is part of the
+// contract for webapps using RDS. See docs/design/webapp-generator.md §9.5
+// and the smoke proof in tools/smoke-webapp.sh.
+"use client";
+
 import { Button } from "@fabio.caffarello/react-design-system";
 
 export default function Home() {

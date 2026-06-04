@@ -497,7 +497,110 @@ da ordem.
 
 ---
 
-## 7) O que NÃO entra aqui
+## 7) Estratégia de teste — Tree-test rápido + smoke real lento
+
+Generators de produto provam-se em **duas camadas que não se substituem**.
+Esta seção fecha o catálogo: o que cada camada cobre, o que cada uma
+**não** cobre, e onde cada uma roda.
+
+### a) Camada 1 — Tree-test contra fixture (rápido, todo PR)
+
+Modelo do `marker` e do harness do `webapp` (33 asserções
+comportamentais contra `__fixtures__/cna-16.2.7/`). Cobre:
+
+- Schema validation (§3.c — required + pattern, asserções separadas).
+- Ordem da composição (§6.a — `validateOptions` antes do subprocess,
+  delegação antes do harness).
+- Templates EJS aplicados (sobrescritas + criação).
+- Edição cirúrgica de manifestos (`updateJson`).
+- Files intocados byte-idênticos à fixture.
+- Snapshot + asserções semânticas do argv da ferramenta delegada (§6.c).
+
+**Não cobre**:
+
+- O `defaultRun<X>` real (subprocess).
+- O comportamento da ferramenta delegada (ex.: o `create-next-app`
+  realmente baixou e gerou).
+- O build/lint/run do output (o gerador produz arquivos válidos para
+  o downstream).
+
+Custo: <1s. Cadência: pre-commit + todo PR.
+
+### b) Camada 2 — Smoke real ponta a ponta (lento, periódico)
+
+Modelo do `tools/smoke-webapp.sh`. Roda em ambiente descartável,
+exercita o `default<X>` real, e prova que o output **builda, linta,
+roda**. Tem assertion comportamental sobre o produto final
+(ex.: classes do RDS no HTML estático do `next build`) + controles
+(ex.: boilerplate da ferramenta delegada está **ausente**, provando
+que o harness sobrescreveu).
+
+Cobre:
+
+- A ferramenta delegada de fato baixa, executa, escreve em disco.
+- O harness aplica sobre output real.
+- O webapp gerado satisfaz `pnpm install` + `next build` + `eslint`.
+- A integração do design system (ou equivalente) é runtime, não só
+  declarada no manifest.
+- A versão pinada (`CNA_VERSION = '16.2.7'`) é a que **de fato roda**
+  — o `pnpm dlx` cache não promove silenciosamente.
+
+**Não cobre**:
+
+- As condições de borda do harness que a Tree-test enumera (asserção
+  por asserção sobre o conteúdo dos templates).
+
+Custo: ~1-2 min. Cadência: **local antes de release + nightly + manual
+pre-release**. Não roda em todo PR (custo/valor desfavorável; raramente
+falha por causa do PR).
+
+### c) Padrão recorrente: o smoke real pega o que o Tree-test não vê
+
+Lições do `webapp` Peça 5 — **dois defeitos descobertos só pelo smoke**,
+ambos invisíveis ao Tree-test:
+
+1. **Parent dir do `target` precisa existir antes do CNA.** O Tree-test
+   mocka `runCreateNextApp` e nunca passa um path real a um subprocess
+   real. O CNA reclama com mensagem genérica ("The application path is
+   not writable") quando o pai não existe. Solução: `defaultRunCreateNextApp`
+   faz `mkdir(dirname(target), { recursive: true })` antes do spawn.
+
+2. **`page.tsx` com componente do design system precisa de `"use client"`.**
+   O `<Button>` do RDS internamente usa React Context (via `cva` +
+   providers). Em Next 16 + Turbopack, o prerender server-side da
+   página falha com `(0, j.createContext) is not a function` se o
+   componente RDS for evaluated num server tree. Solução: marcar
+   `page.tsx` como client component no template do harness. Tree-test
+   não cobre porque não roda `next build`.
+
+Esses são o **5º e 6º casos do padrão "caminho rápido esconde"**
+(antes: TS6307, `@ts-expect-error` no vitest, dotfiles no `pnpm pack`,
+`.gitignore` aninhado + Prettier). A regra que emerge: **toda nova
+ferramenta delegada provavelmente adiciona um caso novo**. O smoke
+é onde se descobre.
+
+### d) Quando bumpar a versão pinada da ferramenta delegada
+
+Quando `CNA_VERSION` muda (ex.: `16.2.7` → `16.3.0`), TUDO acontece em
+um único PR:
+
+1. **Atualizar a constante** no `webapp.ts` (`CNA_VERSION = '16.3.0'`).
+2. **Regenerar a fixture**: rodar o CNA nova versão com as 11 flags do
+   contrato, capturar em `__fixtures__/cna-16.3.0/`, excluir a antiga
+   (`cna-16.2.7/`).
+3. **Atualizar o `applyFixture`** no spec para apontar para o novo
+   diretório.
+4. **Rodar `nx run sf-plugin:test`** — o snapshot dos `CNA_FLAGS` pode
+   precisar atualizar (se a ferramenta mudou flags).
+5. **Rodar `./tools/smoke-webapp.sh`** — prova de fato no nova versão.
+6. **Atualizar `webapp-generator.md` §2** com data, versão e razão.
+
+O snapshot dos flags é a rede ampla; o smoke é o juiz. A fixture é o
+dado congelado; ela MUDA quando a versão muda.
+
+---
+
+## 8) O que NÃO entra aqui
 
 - **O quê** o generator faz — vive no doc de design correspondente em
   `docs/design/<generator>.md`.
