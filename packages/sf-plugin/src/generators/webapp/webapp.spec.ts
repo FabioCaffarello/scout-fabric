@@ -84,6 +84,24 @@ describe('sf-plugin:webapp — schema validation (Peça 1)', () => {
     it('rejects names that start with a digit — pattern violation', () => {
       expect(() => validateOptions({ name: '1foo', directory: 'apps/foo' })).toThrow(/kebab-case/);
     });
+
+    it('rejects when `directory` is an absolute path — path-traversal vector', () => {
+      expect(() => validateOptions({ name: 'foo', directory: '/etc/foo' })).toThrow(
+        /workspace-relative/,
+      );
+    });
+
+    it('rejects when `directory` contains a `..` segment at the start — path-traversal vector', () => {
+      expect(() => validateOptions({ name: 'foo', directory: '../escape' })).toThrow(
+        /path traversal/,
+      );
+    });
+
+    it('rejects when `directory` contains a `..` segment in the middle — path-traversal vector', () => {
+      expect(() => validateOptions({ name: 'foo', directory: 'apps/../escape' })).toThrow(
+        /path traversal/,
+      );
+    });
   });
 
   describe('webappGenerator (entry point delegates to validateOptions)', () => {
@@ -105,6 +123,16 @@ describe('sf-plugin:webapp — schema validation (Peça 1)', () => {
       await expect(
         webappGenerator(tree, { name: 'PascalCase', directory: 'apps/x' }, { runCreateNextApp }),
       ).rejects.toThrow(/kebab-case/);
+      expect(runCreateNextApp).not.toHaveBeenCalled();
+    });
+
+    it('throws when `directory` has path traversal — runs BEFORE any subprocess', async () => {
+      const runCreateNextApp = vi.fn(async () => {
+        throw new Error('runCreateNextApp must not be called when validation fails');
+      });
+      await expect(
+        webappGenerator(tree, { name: 'hello-rds', directory: '../escape' }, { runCreateNextApp }),
+      ).rejects.toThrow(/path traversal/);
       expect(runCreateNextApp).not.toHaveBeenCalled();
     });
   });

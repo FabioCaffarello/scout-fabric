@@ -1,0 +1,131 @@
+name: nightly
+
+# Posture: RELATÓRIO, não gate. Decisão da Fase 4 da auditoria — ver
+# docs/audit/05-decisoes-tomadas-adr.md (mecanismo Fase 4 + #9 + #11).
+#
+# Por quê relatório e não gate: este workflow depende de rede externa
+# (`pnpm dlx` baixa o CNA; `pnpm install` resolve o registry público).
+# Os outros workflows do repo (ci, governance-drift, release) são
+# herméticos. Falsos-positivos de rede às 3h da manhã viram fadiga de
+# alarme, e fadiga de alarme corrói os sinais herméticos —
+# CLAUDE.md "Norte sem burocracia": "regras lentas que viram
+# `--no-verify` valem zero".
+#
+# Realização do limiar de persistência via issue auto-gerenciada:
+# o passo final abre/atualiza uma issue quando smoke ou drift falham,
+# e fecha-a quando voltam a passar. Humano reage à atividade da issue
+# (acumulação de comentários por noites consecutivas = corrosão real;
+# uma noite isolada = ruído). Este workflow **NÃO é required check**
+# em branch protection.
+
+on:
+  schedule:
+    # 06:00 UTC = horário de baixo tráfego em registries públicos.
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write # para a issue auto-gerenciada do passo final
+
+env:
+  HUSKY: '0'
+
+jobs:
+  smoke-and-drift:
+    name: smoke + fixture drift
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # #11 — `pnpm install + next build` dentro do smoke já prova que a
+      # tupla (CNA, RDS, peers) instala+builda. Rodar com cadência converte
+      # "primeiro filho descobre" em "fábrica descobre primeiro".
+      - name: smoke-webapp.sh
+        id: smoke
+        run: ./tools/smoke-webapp.sh
+        continue-on-error: true
+
+      # #9 — drift fixture↔CNA real. Capturamos um output fresco do CNA
+      # com o mesmo flag set do contrato (webapp.ts:CNA_FLAGS) e diffamos
+      # contra a fixture versionada. Qualquer diferença = drift; ou o
+      # CNA mudou de template via fetch lazy não-versionado, ou a
+      # fixture precisa ser regenerada. Sem este check, o defeito é
+      # silencioso e afeta a frota inteira simultaneamente.
+      - name: CNA fixture drift
+        id: fixture-drift
+        run: |
+          set -euo pipefail
+          FRESH="$(mktemp -d -t cna-fresh-XXXXXX)"
+          # Mesmas 11 flags semânticas do contrato §3, em ordem.
+          pnpm dlx create-next-app@16.2.7 "${FRESH}/app" \
+            --ts --tailwind --eslint --app --src-dir \
+            --no-react-compiler --no-agents-md \
+            --import-alias '@/*' --use-pnpm \
+            --skip-install --disable-git
+          FIXTURE="packages/sf-plugin/src/generators/webapp/__fixtures__/cna-16.2.7"
+          echo "::group::diff -r --brief ${FIXTURE} ${FRESH}/app"
+          diff -r --brief "${FIXTURE}" "${FRESH}/app"
+          echo "::endgroup::"
+        continue-on-error: true
+
+      - name: manage report issue
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          SMOKE_OUTCOME: ${{ steps.smoke.outcome }}
+          DRIFT_OUTCOME: ${{ steps.fixture-drift.outcome }}
+        with:
+          script: |
+            const smokeOk = process.env.SMOKE_OUTCOME === 'success';
+            const driftOk = process.env.DRIFT_OUTCOME === 'success';
+            const title = 'nightly: smoke or fixture-drift failure';
+            const label = 'nightly-smoke';
+            const { owner, repo } = context.repo;
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            const now = new Date().toISOString();
+
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner, repo, state: 'open', labels: label,
+            });
+            const existing = issues.find((i) => i.title === title);
+
+            if (smokeOk && driftOk) {
+              if (existing) {
+                await github.rest.issues.createComment({
+                  owner, repo, issue_number: existing.number,
+                  body: `Recovered at ${now}. Closing.\n\nRun: ${runUrl}`,
+                });
+                await github.rest.issues.update({
+                  owner, repo, issue_number: existing.number, state: 'closed',
+                });
+              }
+              core.info('Smoke + drift OK; nothing to report.');
+              return;
+            }
+
+            const body = [
+              `Nightly run on ${now}:`,
+              `- smoke: ${smokeOk ? 'OK' : 'FAILED'}`,
+              `- fixture drift: ${driftOk ? 'OK' : 'FAILED'}`,
+              ``,
+              `Run: ${runUrl}`,
+              ``,
+              '_Posture is **report, not gate**: persistence (multiple consecutive failures) is the signal; a single failure may be flaky network. See `docs/conventions/generator.md` §7.c if drift._',
+            ].join('\n');
+
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: existing.number, body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner, repo, title, body, labels: [label],
+              });
+            }

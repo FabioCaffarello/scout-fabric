@@ -17,7 +17,8 @@
     },
     "directory": {
       "type": "string",
-      "description": "Workspace-relative directory where the webapp will be created (e.g. apps/<name>).",
+      "description": "Workspace-relative directory where the webapp will be created (e.g. apps/<name>). Must be relative (no leading `/`) and must not contain `..` segments.",
+      "pattern": "^(?!/)(?!.*(^|/)\\.\\.(/|$)).*$",
       "x-prompt": "Directory for the webapp?"
     }
   },

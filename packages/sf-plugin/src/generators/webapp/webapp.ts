@@ -11,6 +11,13 @@ import { WebappGeneratorSchema } from './schema';
 // calls, integration tests). See docs/conventions/generator.md §2.c.
 const NAME_PATTERN = /^[a-z][a-z0-9-]*$/;
 
+// Mirrors the path-traversal half of `schema.json#properties.directory.pattern`.
+// Matches `..` as a full path segment: at start-of-string or right after `/`,
+// followed by `/` or end-of-string. The other half of the schema pattern (no
+// leading `/`) is checked via `path.isAbsolute` below for cross-platform
+// coverage. Defense in depth — see docs/conventions/generator.md §2.c.
+const DIRECTORY_TRAVERSAL_PATTERN = /(^|\/)\.\.(\/|$)/;
+
 // =====================================================================
 // CNA delegation contract — see docs/design/webapp-generator.md §2 + §3
 // =====================================================================
@@ -144,6 +151,23 @@ export function validateOptions(
   if (!NAME_PATTERN.test(options.name)) {
     throw new Error(
       `sf-plugin:webapp — \`name\` must match ${NAME_PATTERN} (kebab-case, starts with a lowercase letter)`,
+    );
+  }
+  // `directory` must be workspace-relative (not absolute) and must not
+  // contain `..` segments. Either vector would let a hostile or buggy
+  // `spec.md` escape the intended target dir via `path.join(workspaceRoot, ...)`.
+  // Two checks because the schema's regex covers only POSIX absolute (`^/`),
+  // while `path.isAbsolute` also catches Windows absolutes — and explicit
+  // checks beat depending on `path.join` neutralization. See
+  // docs/conventions/generator.md §2.c.
+  if (path.isAbsolute(options.directory)) {
+    throw new Error(
+      'sf-plugin:webapp — `directory` must be workspace-relative, not an absolute path',
+    );
+  }
+  if (DIRECTORY_TRAVERSAL_PATTERN.test(options.directory)) {
+    throw new Error(
+      'sf-plugin:webapp — `directory` must not contain `..` segments (path traversal)',
     );
   }
 }
