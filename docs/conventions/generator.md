@@ -505,8 +505,9 @@ Esta seção fecha o catálogo: o que cada camada cobre, o que cada uma
 
 ### a) Camada 1 — Tree-test contra fixture (rápido, todo PR)
 
-Modelo do `marker` e do harness do `webapp` (33 asserções
-comportamentais contra `__fixtures__/cna-16.2.7/`). Cobre:
+Modelo do `marker` e do harness do `webapp` (27 asserções
+comportamentais contra `__fixtures__/cna-16.2.7/`, Peça 3 do
+`webapp.spec.ts`). Cobre:
 
 - Schema validation (§3.c — required + pattern, asserções separadas).
 - Ordem da composição (§6.a — `validateOptions` antes do subprocess,

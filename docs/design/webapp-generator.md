@@ -4,8 +4,8 @@ Este documento fixa o desenho do **primeiro generator real** do `sf-plugin`:
 um orquestrador que delega ao `create-next-app` e aplica um harness
 mínimo para integrar o `@fabio.caffarello/react-design-system` (RDS).
 
-**Status:** decisões cravadas em fato observado (não em hipótese). Pronto
-para virar prompt de implementação.
+**Status:** decisões cravadas em fato observado (não em hipótese).
+Implementado em PRs #18 e #19.
 
 Convenções deste doc:
 

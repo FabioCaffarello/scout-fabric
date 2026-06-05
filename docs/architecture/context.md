@@ -27,6 +27,12 @@ nascem **fora** dela.
 - **Fluxo em três fases, com checkpoints:** `init → scout → materialize`.
 - **Scout determinístico** — escolhe de catálogo fixo. Specs em Markdown
   com frontmatter YAML (prosa para humano + bloco para generators).
+- **Contrato de zonas (`init` → `materialize`)** — entre essas fases, o
+  `.claude/` de um projeto-filho **será** escrito apenas pela fábrica
+  (nunca editado à mão pelo operador). O `materialize` **deverá** honrar
+  `zona-app` (regime create, sobrescrita-segura) e `zona-.claude` (regime
+  patch), e parar via guarda de sanidade se o disco divergir. Fundamento
+  e alternativas em [`../audit/05-decisoes-tomadas-adr.md`](../audit/05-decisoes-tomadas-adr.md) (decisão #6).
 - **Naming** — publicáveis sob `@fabio.caffarello/sf-<pkg>`; condition
   interna `@scout-fabric/source` (dev-time, nunca publicada).
 - **Stack** — pnpm 10, Husky v9 + lint-staged, conventional commits.
@@ -48,7 +54,7 @@ nascem **fora** dela.
   runner, `sharedGlobals` modelando os arquivos cross-workspace,
   `targetDefaults.test` semeado.
 
-**Pacotes (camada 0.9 + 3):** dois pacotes vivos.
+**Pacotes (camada 0.9 + 3):** três pacotes vivos.
 
 - `packages/sf-tsconfig` — TS configs base reusáveis
   (`base.json` + `lib.json`).
@@ -59,6 +65,10 @@ nascem **fora** dela.
   via `workspace:*`) e acrescenta apenas o que é workspace-specific
   (typed-lint com `projectService`, `enforce-module-boundaries` com
   `depConstraints`).
+- `packages/sf-plugin` — Nx plugin (host de generators). Hoje tem
+  `marker` (probe de infraestrutura) e `webapp` (gerador real que delega
+  a `create-next-app` + harness RDS). É a CLI da fábrica —
+  `nx g @fabio.caffarello/sf-plugin:<name>` é a interface.
 
 A workspace dep força Node a resolver pelo `default` do `exports`,
 ou seja, pelo `dist/`. Por isso `targetDefaults.lint.dependsOn` no
@@ -122,12 +132,6 @@ Coverage `v8`, reporters `text+html`, sem thresholds.
 - `NPM_TOKEN` (automation, scope `@fabio.caffarello/*`) → ativa publish real.
 - `GOVERNANCE_ADMIN_TOKEN` (PAT, `Repository administration: Read`) →
   ativa drift check verde.
-
-**Próximos pacotes** (camada de produto):
-
-- `@fabio.caffarello/sf-plugin` — Nx plugin (generators + executors +
-  migrations). A "CLI da fábrica". Será o primeiro a usar o ferramental
-  `.claude/` que acabamos de provar com `sf-eslint-config`.
 
 **Mais à frente:**
 
