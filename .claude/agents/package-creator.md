@@ -54,6 +54,33 @@ Se o usuário passou o pedido com pouca informação, pergunte **uma vez**
 com tudo de uma vez (não em ping-pong). Aguarde resposta antes de gerar
 qualquer coisa.
 
+### 1.5) Reconhecer a forma antes de gerar (guarda pre-execução)
+
+Antes de rodar `@nx/js:lib` (passo 2), confronte a resposta sobre o que
+o pacote exporta com os marcadores das três formas:
+
+- **Forma A — JSON-puro** (`package.md` §8.a): se a resposta é "JSONs
+  de config TS", "schemas estáticos", "presets em JSON" ou equivalente.
+  Marcador formal: sem `tsconfig.lib.json`, sem `dist/`, sem
+  `dependencies`, sem entrada `"."` em `exports`. **Parar e reportar**
+  ao usuário: "isto parece Forma A; o playbook deste agente cria a
+  forma padrão (Forma B); siga `package.md §8.a` manualmente, ou
+  re-formule o pedido."
+- **Forma C — plugin** (`package.md` §8.b): se a resposta menciona
+  "generators Nx", "plugin", "host de generators", `nx g`, ou
+  equivalente. Marcador: `generators.json`, build `@nx/js:tsc` +
+  assets, tag `type:plugin`. **Parar e redirecionar**: "isto é Forma C;
+  use o subagent `plugin-creator` em vez deste."
+- **Forma B — padrão**: qualquer outra coisa que entrega função,
+  classe, objeto pronto para import, config-com-código. Seguir com o
+  passo 2.
+
+Esta guarda é **pre-execução** — antes do `@nx/js:lib`. Sem ela, o
+agente produz uma Forma B errada para um pedido que era Forma A ou
+Forma C, com `lint`/`test`/`build` verdes (estruturalmente válida) mas
+semanticamente errada — defeito silencioso que o usuário só percebe
+depois.
+
 ### 2) Rodar os generators (dois passos, **ordem importa**)
 
 ```sh
