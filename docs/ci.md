@@ -4,7 +4,7 @@ Mapa do CI da fábrica. Curto por design.
 
 ## O que o CI da fábrica faz
 
-Único workflow: `.github/workflows/ci.yml`. Disparado em:
+Workflow principal: `.github/workflows/ci.yml`. Disparado em:
 
 - `pull_request` para `main` — **affected** (`lint`, `typecheck`, `test`, `build`)
 - `push` em `main` — **run-many** (mesmos targets, em todo projeto)
@@ -42,6 +42,31 @@ Este CI valida a **fábrica**, não os projetos gerados.
 - A fábrica **não** simula o CI dos projetos-filhos. Validar a integração de
   ponta a ponta com um projeto real é responsabilidade de smoke tests
   separados (roadmap).
+
+## Workflows complementares
+
+Além do `ci.yml`, três workflows têm escopos próprios:
+
+| Workflow               | Disparo                                      | Postura                 | O que faz                                                                                                                                           |
+| ---------------------- | -------------------------------------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `release.yml`          | `workflow_dispatch` apenas                   | manual                  | Bump + changelog (publish real comentado até ativar — ver `release.md`).                                                                            |
+| `governance-drift.yml` | `workflow_dispatch` + cron semanal           | relatório               | Diff entre `governance/branch-protection.main.json` e estado live; nunca aplica.                                                                    |
+| `nightly.yml`          | `schedule` (06:00 UTC) + `workflow_dispatch` | **relatório, não gate** | Roda `tools/smoke-webapp.sh` + diff fixture↔CNA fresco. Abre/atualiza/fecha issue auto-gerenciada conforme persistência. **NÃO é required check.** |
+
+### Nightly — por que relatório, não gate
+
+O `nightly.yml` depende de rede externa (`pnpm dlx` baixa o CNA, `pnpm install`
+resolve registry público). Os outros workflows são herméticos. Falsos-positivos
+de rede às 3h da manhã viram fadiga de alarme, e fadiga de alarme corrói os
+sinais herméticos — `CLAUDE.md` "Norte sem burocracia" cita exatamente isso:
+"regras lentas que viram `--no-verify` valem zero".
+
+O limiar de persistência vem de uma **issue auto-gerenciada** (label
+`nightly-smoke`): falha abre/comenta; recuperação fecha. Acumulação de
+comentários por noites consecutivas = corrosão real; uma noite isolada = ruído
+de rede. Humano reage à atividade da issue, não ao status do run. Decidido na
+Fase 4 da auditoria — ver `docs/audit/05-decisoes-tomadas-adr.md` (#9 + #11 +
+mecanismo Fase 4).
 
 ## Como reproduzir localmente
 
