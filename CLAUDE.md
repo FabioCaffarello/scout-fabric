@@ -63,9 +63,16 @@ carrega chaves pnpm-only.
 Os diretórios abaixo são a convenção pretendida; vão materializar conforme
 generators do plugin Nx forem rodados.
 
-- **Pacote publicável novo** → `packages/sf-<pkg>/`. **Use o subagent
-  `package-creator`** (veja abaixo) — não escreva à mão.
-- **Plugin Nx** → `packages/sf-plugin/`.
+- **Pacote publicável novo (Forma A JSON-puro ou Forma B lib padrão)** →
+  `packages/sf-<pkg>/`. **Use o subagent `package-creator`** (veja
+  abaixo) — não escreva à mão. O agente tem guarda pre-execução para
+  reconhecer Forma A e redirecionar para Forma C.
+- **Plugin Nx novo (Forma C — pacote que hospeda generators)** →
+  `packages/sf-<pkg>/`. **Use o subagent `plugin-creator`** (veja
+  abaixo) — não escreva à mão.
+- **Plugin Nx existente (`sf-plugin`)** → `packages/sf-plugin/`. Para
+  adicionar um generator **dentro** de um plugin já vivo, ver
+  `docs/conventions/generator.md`.
 - **Catálogo de scout / schemas / kit de scout** → ainda não definido; ver
   roadmap em `context.md`.
 - **Documentação de decisão arquitetural** → `docs/architecture/`.
@@ -75,11 +82,24 @@ generators do plugin Nx forem rodados.
 ## Subagents
 
 - **`package-creator`** — encapsula o checklist de
-  `docs/conventions/package.md` para criar um pacote `sf-*` novo.
-  Disparado por pedidos como "criar pacote sf-X" ou "scaffold sf-X".
-  Roda o generator, aplica os ajustes obrigatórios, escreve o primeiro
-  teste real e valida. **Não publica, não comita, não abre PR.** Definição
-  em [`.claude/agents/package-creator.md`](.claude/agents/package-creator.md).
+  `docs/conventions/package.md` (Forma A JSON-puro e Forma B lib
+  padrão) para criar um pacote `sf-*` novo. Disparado por pedidos como
+  "criar pacote sf-X" ou "scaffold sf-X". Roda o generator, aplica os
+  ajustes obrigatórios, escreve o primeiro teste real e valida. Tem
+  **guarda pre-execução**: se a resposta sobre o que o pacote exporta
+  casa o padrão JSON-puro, para e reporta; se casa o padrão plugin,
+  redireciona para `plugin-creator`. **Não publica, não comita, não
+  abre PR.** Definição em
+  [`.claude/agents/package-creator.md`](.claude/agents/package-creator.md).
+- **`plugin-creator`** — encapsula o checklist de
+  `docs/conventions/package.md` §8.b (Forma C — pacote que hospeda
+  generators Nx) para criar um plugin `sf-*` novo. Disparado por
+  pedidos como "criar plugin sf-X" ou "scaffold sf-X plugin". Roda
+  `@nx/plugin:plugin`, aplica os ajustes da §8.b, escreve o primeiro
+  generator (probe ou produto), valida. **Pode editar `nx.json`** só
+  para adicionar `targetDefaults["@nx/js:tsc"]` se inexistente, com
+  confirmação. **Não publica, não comita, não abre PR.** Definição em
+  [`.claude/agents/plugin-creator.md`](.claude/agents/plugin-creator.md).
 
 ## Skills
 

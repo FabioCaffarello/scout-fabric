@@ -291,9 +291,7 @@ que o tarball, instalado num consumidor real, faz o que o spec diz.
 
 `type:plugin` denota a forma estrutural Forma C — pacote que hospeda
 generators Nx, com build explícito `@nx/js:tsc` + assets +
-`generators.json`. Caracterizada em
-[`../audit/02-tres-formas.md`](../audit/02-tres-formas.md) enquanto
-`§8.b` está em elaboração.
+`generators.json`. Detalhada em §8.b.
 
 ---
 
@@ -383,3 +381,141 @@ ferramentas (`tsconfig`, `package.json`-style configs, schemas
 **Quando NÃO usar:** se entrega função, classe, objeto, executor,
 generator, plugin Nx, flat config de ESLint — qualquer coisa que é
 código carregado, use a forma padrão.
+
+### 8.b) Plugin (host de generators Nx — ex.: `sf-plugin`)
+
+Pacote que hospeda generators Nx executados via `nx g <pkg>:<name>` no
+consumidor. A única forma da fábrica que **gera código no consumidor**
+— base do `materialize` do scout.
+
+**Marcador para reconhecer:** `generators.json` na raiz; chave
+`"generators": "./generators.json"` no `package.json`; **ausência** de
+`"type": "module"`; build declarado à mão com `@nx/js:tsc` + `assets`;
+tag `type:plugin`. Se um pacote tem qualquer um desses, é Forma C.
+Reciprocamente: se um pacote **não** tem `generators.json`, **não** é
+Forma C.
+
+**Generator de nascimento:** `@nx/plugin:plugin`, **não** `@nx/js:lib`
+(que é o da forma padrão e da §8.a). Ancorado no corpo do commit
+`73212d7` ("Side-effects do `@nx/plugin:plugin` no workspace estão
+neste commit").
+
+#### Comando — graduação inline por flag
+
+```sh
+pnpm exec nx g @nx/plugin:plugin packages/sf-<pkg> \
+  --linter=eslint \
+  --tags=scope:public,type:plugin \
+  --useProjectJson=false \
+  --importPath=@fabio.caffarello/sf-<pkg> \
+  --no-interactive \
+  --unitTestRunner=none
+```
+
+| Flag                                      | Grau                                                                                                                                                                                                                                                                                                                                                 |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--linter=eslint`                         | **OBSERVADO-por-resultado** (`packages/sf-plugin/eslint.config.mjs` existe; convenção do workspace)                                                                                                                                                                                                                                                  |
+| `--tags=scope:public,type:plugin`         | **OBSERVADO-por-resultado** (`packages/sf-plugin/package.json:61-63`)                                                                                                                                                                                                                                                                                |
+| `--useProjectJson=false`                  | **OBSERVADO-por-resultado** (ausência de `project.json` em `packages/sf-plugin/`)                                                                                                                                                                                                                                                                    |
+| `--importPath=@fabio.caffarello/sf-<pkg>` | **OBSERVADO-por-resultado** (`packages/sf-plugin/package.json:2`)                                                                                                                                                                                                                                                                                    |
+| `--no-interactive`                        | **OBSERVADO-por-convenção-universal** do workspace                                                                                                                                                                                                                                                                                                   |
+| `--unitTestRunner=none`                   | **INFERIDO-DO-EFEITO**. O corpo do `73212d7` diz "`@nx/jest` peer indesejado **removido**" — "removido" pode significar (a) o generator rodou com runner default que pulled `@nx/jest`, limpo depois; ou (b) rodou com `none` por outra razão. `none` evita o cleanup; o uso histórico em `73212d7` é ambíguo. Verificar na primeira invocação real. |
+| `--description=<...>`                     | **LACUNA**: flag aceita pelo generator, não registrada em `73212d7`.                                                                                                                                                                                                                                                                                 |
+
+O comando **parece** análogo ao de §8.a (literal testado), mas as
+graduações são diferentes — algumas flags têm cobertura indireta ("o
+estado real do `sf-plugin` confirma o efeito"), uma é genuinamente
+inferida do efeito. Quem copia-cola leva os graus junto.
+
+#### Regra CJS — obrigatório no perfil de compat atual
+
+O Nx CLI carrega cada factory de generator via `require()` literal
+(`node_modules/nx/dist/src/config/schema-utils.js:26`, dentro de
+`getImplementationFactory`, chamada de `generator-utils.js:24` durante
+`getGeneratorInformation`).
+
+**Fatos do Node** (OBSERVADO-FORA-DO-REPO; fonte canônica:
+[Node v22.12.0 release notes](https://nodejs.org/en/blog/release/v22.12.0)
+— LTS "Jod", 2024-12-03; espelho:
+[github.com/nodejs/node releases/v22.12.0](https://github.com/nodejs/node/releases/tag/v22.12.0)):
+
+- A partir da v22.12.0, `require(esm)` é **default-on**; antes estava
+  atrás de `--experimental-require-module`.
+- Em Node 22.0–22.11, `require()` em ESM lança `ERR_REQUIRE_ESM`.
+- Mesmo com `require(esm)` habilitado, `require()` de um ES module
+  lança `ERR_REQUIRE_ASYNC_MODULE` quando o módulo **ou qualquer dep
+  no grafo** usa **top-level await**.
+- Na linha 22.x, o warning experimental de `require(esm)` **não é
+  emitido** quando o `require` vem de path contendo `node_modules`.
+  Como o `sf-plugin` é carregado pelo Nx a partir de `node_modules` no
+  consumidor, a distinção CJS-vs-ESM aqui é sobre **funcionar** (a
+  janela `ERR_REQUIRE_ESM` em 22.0–22.11, mais o caso de top-level
+  await) — **não** sobre warning. Nomeado para não confundir falha
+  com ruído.
+
+**Consequência para a Forma C.** `sf-plugin` **não declara
+`engines.node` próprio** — herda o piso prático do workspace
+(`>=22.0.0`), que **inclui** Node 22.0–22.11. Logo:
+
+- Forma C **não declara `"type": "module"`** no `package.json`. O
+  `dist/index.js` resultante é CJS (`"use strict";` na primeira linha).
+- Modernizar para ESM **não** é edit isolado do `"type"`. Exigiria as
+  duas condições simultâneas:
+  1. **Elevar `engines.node` para `≥22.12.0`** — resolve a janela
+     `ERR_REQUIRE_ESM` em 22.0–22.11.
+  2. **Garantir que o módulo do plugin e todas as deps no grafo não
+     usem top-level await** — caso contrário, `require()` no consumidor
+     lança `ERR_REQUIRE_ASYNC_MODULE` mesmo em Node ≥22.12. Para
+     factories Nx síncronas isso raramente é problema, mas a condição
+     é parte da regra.
+
+#### O que diverge da seção 3
+
+1. **`package.json` top-level: `"generators": "./generators.json"`**
+   e `"generators.json"` em `files[]`. Sem isso, o Nx CLI não descobre
+   os generators no consumidor instalado.
+2. **`nx.targets.build` declarado à mão** no `package.json#nx.targets`,
+   com `executor: "@nx/js:tsc"`, `generatePackageJson: false`, e
+   **dois blocos `assets[]`**:
+   - bloco 1, `glob: "**/!(*.ts)"` — copia templates EJS e `schema.json`;
+   - bloco 2, `glob: "**/*.d.ts"` — copia schemas tipados à mão (o
+     bloco 1 exclui `.d.ts`).
+
+   Cada bloco precisa de **dois entries** em `ignore` para fixtures:
+   `"**/__fixtures__/**"` e `"**/__fixtures__/**/.*"` (atrito do
+   `@nx/js:tsc` com dotfiles — fonte canônica em
+   [`generator.md`](./generator.md) §5.c #2).
+
+3. **`tsconfig.lib.json#exclude` ganha `"src/**/**fixtures**/**"`**
+   quando o plugin tem fixtures. Sem isso, `tsc --build` tentaria
+   typecheckar `.ts`/`.d.ts` da fixture contra deps que o plugin não
+   tem. Fonte em [`generator.md`](./generator.md) §5.c #1.
+4. **`@nx/devkit` em `dependencies`** (não peer) + `tslib` mantido.
+   O plugin importa `Tree`, `generateFiles`, `updateJson`,
+   `workspaceRoot` em runtime — deps reais.
+5. **Sem `"type": "module"`** (regra CJS acima).
+6. **`vitest.config.mts` e `tsconfig.spec.json` criados à mão.**
+   `@nx/vite:configuration` recusa projetos com `@nx/js:tsc` explícito
+   (lista de unsupported executors do `@nx/vite`; observado no corpo
+   de `73212d7`).
+7. **`eslint.config.mjs` do pacote**: ganha regra
+   `@nx/nx-plugin-checks` sobre `**/package.json` e
+   `**/generators.json`, e `ignores: ['**/__fixtures__/**']` quando há
+   fixtures.
+
+**Camadas anti-fixture** (apenas quando o plugin tem fixtures): seis
+camadas — `tsconfig.lib.json#exclude`, `assets[].ignore` (2 entries
+por bloco), `.nxignore`, `.gitignore` raiz com unignore,
+`.prettierignore`, e o `eslint.config.mjs` do pacote. Documentadas em
+[`generator.md`](./generator.md) §5.c + §5.e; não duplicadas aqui.
+
+**`src/index.ts` pode ser vazio.** O entry só satisfaz a convenção do
+scope publicável — a API real é descoberta via `generators.json`.
+
+**Quando usar:** o pacote hospeda generators (e/ou executors,
+migrations) Nx que serão invocados via `nx g <pkg>:<name>` no
+consumidor.
+
+**Quando NÃO usar:** se entrega função, classe, objeto pronto para
+import (sem dimensão de generator), use a forma padrão (§1–§7). Se
+entrega JSON estático, use §8.a.
