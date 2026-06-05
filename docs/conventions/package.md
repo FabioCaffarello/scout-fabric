@@ -432,22 +432,42 @@ inferida do efeito. Quem copia-cola leva os graus junto.
 O Nx CLI carrega cada factory de generator via `require()` literal
 (`node_modules/nx/dist/src/config/schema-utils.js:26`, dentro de
 `getImplementationFactory`, chamada de `generator-utils.js:24` durante
-`getGeneratorInformation`). `require()` em Node ≥22.12 aceita ESM
-síncrono via `require(esm)` (default-on a partir de 22.12; antes,
-experimental sob `--experimental-require-module`).
-_[verificar: link canônico do release note do Node 22.12 sobre
-`require(esm)` default-on — sem o link, o elo Node≥22.12 da cadeia fica
-não-ancorado neste doc]_.
-Em Node 22.0–22.11, `require()` em ESM lança `ERR_REQUIRE_ESM`.
+`getGeneratorInformation`).
 
-`sf-plugin` **não declara `engines.node` próprio** — herda o piso
-prático do workspace (`>=22.0.0`), que **inclui** Node 22.0–22.11.
-Logo:
+**Fatos do Node** (OBSERVADO-FORA-DO-REPO; fonte canônica:
+[Node v22.12.0 release notes](https://nodejs.org/en/blog/release/v22.12.0)
+— LTS "Jod", 2024-12-03; espelho:
+[github.com/nodejs/node releases/v22.12.0](https://github.com/nodejs/node/releases/tag/v22.12.0)):
+
+- A partir da v22.12.0, `require(esm)` é **default-on**; antes estava
+  atrás de `--experimental-require-module`.
+- Em Node 22.0–22.11, `require()` em ESM lança `ERR_REQUIRE_ESM`.
+- Mesmo com `require(esm)` habilitado, `require()` de um ES module
+  lança `ERR_REQUIRE_ASYNC_MODULE` quando o módulo **ou qualquer dep
+  no grafo** usa **top-level await**.
+- Na linha 22.x, o warning experimental de `require(esm)` **não é
+  emitido** quando o `require` vem de path contendo `node_modules`.
+  Como o `sf-plugin` é carregado pelo Nx a partir de `node_modules` no
+  consumidor, a distinção CJS-vs-ESM aqui é sobre **funcionar** (a
+  janela `ERR_REQUIRE_ESM` em 22.0–22.11, mais o caso de top-level
+  await) — **não** sobre warning. Nomeado para não confundir falha
+  com ruído.
+
+**Consequência para a Forma C.** `sf-plugin` **não declara
+`engines.node` próprio** — herda o piso prático do workspace
+(`>=22.0.0`), que **inclui** Node 22.0–22.11. Logo:
 
 - Forma C **não declara `"type": "module"`** no `package.json`. O
   `dist/index.js` resultante é CJS (`"use strict";` na primeira linha).
-- Modernizar para ESM exige **elevar `engines.node` simultaneamente**
-  para `≥22.12.0`. Não é edit isolado do `"type"`.
+- Modernizar para ESM **não** é edit isolado do `"type"`. Exigiria as
+  duas condições simultâneas:
+  1. **Elevar `engines.node` para `≥22.12.0`** — resolve a janela
+     `ERR_REQUIRE_ESM` em 22.0–22.11.
+  2. **Garantir que o módulo do plugin e todas as deps no grafo não
+     usem top-level await** — caso contrário, `require()` no consumidor
+     lança `ERR_REQUIRE_ASYNC_MODULE` mesmo em Node ≥22.12. Para
+     factories Nx síncronas isso raramente é problema, mas a condição
+     é parte da regra.
 
 #### O que diverge da seção 3
 
