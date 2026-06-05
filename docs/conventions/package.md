@@ -289,6 +289,12 @@ que o tarball, instalado num consumidor real, faz o que o spec diz.
 | `dependencies` runtime                    | `tslib` quando o source emite helpers           | + deps reais; ausente em pacotes JSON-puro (ver §8)                    |
 | Build target (inferido)                   | presente quando há `tsconfig.lib.json`          | ausente em pacotes JSON-puro (ver §8)                                  |
 
+`type:plugin` denota a forma estrutural Forma C — pacote que hospeda
+generators Nx, com build explícito `@nx/js:tsc` + assets +
+`generators.json`. Caracterizada em
+[`../audit/02-tres-formas.md`](../audit/02-tres-formas.md) enquanto
+`§8.b` está em elaboração.
+
 ---
 
 ## 6) Validar antes de pedir review
